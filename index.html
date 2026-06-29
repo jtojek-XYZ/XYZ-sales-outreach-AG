@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XYZ Sales Outreach Hub</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: hsl(270, 95%, 65%);"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        XYZ <span>Outreach</span>
+      </div>
+      
+      <ul class="sidebar-menu">
+        <li>
+          <a class="menu-item active" data-view="dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="create">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"></path></svg>
+            <span>Create Campaign</span>
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="queue">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span>Outbox Queue</span>
+            <span id="queue-badge-count" class="badge" style="background: rgba(255, 170, 0, 0.15); color: var(--accent-amber); margin-left: auto; display: none;">0</span>
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="logs">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            <span>Activity Logs</span>
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" id="nav-settings">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span>Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <!-- Google Profile Card -->
+      <div class="sidebar-profile">
+        <div class="profile-info">
+          <div id="user-avatar" class="profile-avatar">G</div>
+          <div class="profile-details">
+            <span id="user-email-display" class="profile-name">Not Signed In</span>
+            <span class="profile-role">XYZ Sales Workspace</span>
+          </div>
+        </div>
+        <button id="google-auth-btn" class="btn btn-secondary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem;">
+          Sign In with Google
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT VIEW AREA -->
+    <main class="main-content">
+      
+      <!-- VIEW 1: DASHBOARD & ANALYTICS -->
+      <section id="dashboard-view" class="view-section active-view">
+        <div class="view-header">
+          <div class="view-title">
+            <h1>Outreach Command Center</h1>
+            <p>Track metrics, manage active sequences, and monitor incoming leads.</p>
+          </div>
+          <button class="btn btn-primary" id="btn-quick-create">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Launch Campaign
+          </button>
+        </div>
+
+        <!-- Glowing Stats Counters -->
+        <div class="stats-grid">
+          <div class="glass-card stat-card purple">
+            <div class="stat-label">Total Prospects</div>
+            <div id="stat-total-prospects" class="stat-value">0</div>
+            <div class="stat-footer">Across all campaigns</div>
+          </div>
+          <div class="glass-card stat-card blue">
+            <div class="stat-label">Emails Dispatched</div>
+            <div id="stat-emails-sent" class="stat-value">0</div>
+            <div class="stat-footer">Successfully sent</div>
+          </div>
+          <div class="glass-card stat-card teal">
+            <div class="stat-label">Replies Received</div>
+            <div id="stat-replies" class="stat-value">0</div>
+            <div class="stat-footer">Active interest detected</div>
+          </div>
+          <div class="glass-card stat-card amber">
+            <div class="stat-label">Reply Rate</div>
+            <div id="stat-reply-rate" class="stat-value">0%</div>
+            <div class="stat-footer">Engagement conversion</div>
+          </div>
+        </div>
+
+        <!-- Split Grid: Campaign List & Recent Activity Stream -->
+        <div class="dashboard-layout">
+          <div class="glass-card campaigns-panel">
+            <div class="campaigns-panel-header">
+              <h2 style="font-size: 1.25rem;">Active Campaigns</h2>
+            </div>
+            <div id="campaigns-list" class="campaigns-list-container">
+              <!-- Dynamically Populated Campaigns -->
+              <div class="no-data-placeholder" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                <p>No outreach campaigns launched yet. Click 'Launch Campaign' to begin!</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card activity-panel">
+            <div class="activity-panel-header">
+              <h2 style="font-size: 1.25rem;">Live Activity Feed</h2>
+            </div>
+            <div id="dashboard-activity-stream" class="activity-stream">
+              <!-- Dynamically Populated Activity Logs -->
+              <div class="no-data-placeholder" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                <p>Waiting for sending queue execution or reply detections...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: CAMPAIGN CREATOR & SPREADSHEET LOAD -->
+      <section id="create-view" class="view-section">
+        <div class="view-header">
+          <div class="view-title">
+            <h1 id="create-view-title">Create Outreach Campaign</h1>
+            <p id="create-view-desc">Set a campaign name and upload your contact spreadsheet (CSV or Google Sheet).</p>
+          </div>
+          <button class="btn btn-secondary btn-back-dashboard">
+            Back to Dashboard
+          </button>
+        </div>
+
+        <div class="glass-card" style="margin-bottom: 2rem;">
+          <div class="form-group">
+            <label for="campaign-name">Campaign Name</label>
+            <input type="text" id="campaign-name" class="input-glow" placeholder="e.g. Q3 Brand Revamp - VP of Marketing Pitch">
+          </div>
+        </div>
+
+        <div class="glass-card" id="importer-card" style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
+          <div>
+            <h2 style="font-size: 1.2rem; margin-bottom: 1rem;">Choose Recipient List Input</h2>
+            
+            <!-- Drag & Drop CSV Uploader -->
+            <div id="csv-uploader" class="uploader-zone">
+              <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+              <div class="uploader-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              </div>
+              <p id="csv-uploader-text">Drag and drop your contact <span>CSV File</span> here, or click to browse</p>
+            </div>
+
+            <div class="or-divider">OR</div>
+
+            <!-- Google Sheet Loader -->
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+              <label for="google-sheet-url">Load from Google Sheets (Active Account Required)</label>
+              <div style="display: flex; gap: 1rem;">
+                <input type="text" id="google-sheet-url" class="input-glow" placeholder="Paste full Google Sheets URL (e.g. https://docs.google.com/spreadsheets/d/... )">
+                <button id="btn-load-sheet" class="btn btn-secondary" style="white-space: nowrap;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-blue);"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                  Fetch Sheet
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Locked Recipient Notice for Edit Mode -->
+        <div class="glass-card" id="edit-mode-notice-card" style="display: none; background: rgba(0, 150, 255, 0.04); border-color: rgba(0, 150, 255, 0.15); margin-top: 1.5rem;">
+          <div style="display: flex; gap: 1.25rem; align-items: center; padding: 0.5rem 0.5rem;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(0,150,255,0.1); border: 1px solid rgba(0,150,255,0.2); display: flex; align-items: center; justify-content: center; color: var(--accent-blue);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <div>
+              <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">Campaign Recipient List Locked</h3>
+              <p class="switch-sub" style="margin-top: 0.25rem;">You are editing an existing active campaign. To safeguard your sending history and avoid double-sending to clients, the recipient list is locked. You can update the campaign name above and edit your sequence steps on the next page.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SPREADSHEET PREVIEW ROW (DYNAMICS) -->
+        <div id="recipient-preview-section" class="glass-card" style="margin-top: 2rem; display: none;">
+          <h2 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Recipient List Preview</h2>
+          <p class="switch-sub" style="margin-bottom: 1.5rem;">
+            Successfully parsed <span id="preview-count" style="font-weight: 600; color: var(--accent-purple);">0</span> prospects. Below is a preview of the mapped variables.
+          </p>
+          
+          <div class="table-wrapper">
+            <table id="preview-table">
+              <thead>
+                <!-- Dynamic Header -->
+              </thead>
+              <tbody>
+                <!-- Dynamic Rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+            <button id="btn-cancel-create" class="btn btn-secondary btn-back-dashboard">Cancel</button>
+            <button id="btn-to-editor" class="btn btn-primary">
+              Customize Email Sequence &rarr;
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: SEQUENCE & TEMPLATE EDITOR -->
+      <section id="editor-view" class="view-section">
+        <div class="view-header">
+          <div class="view-title">
+            <h1 id="editor-campaign-title">Setup Outreach Sequence</h1>
+            <p>Draft your templates, configure follow-up delay logic, and personalize with tokens.</p>
+          </div>
+          <button class="btn btn-secondary" id="btn-back-to-create">
+            &larr; Back to Importer
+          </button>
+        </div>
+
+        <div class="editor-layout">
+          <!-- Left side: Timeline Steps and Text Forms -->
+          <div class="editor-sidebar">
+            <div class="glass-card">
+              <h2 style="font-size: 1.15rem; margin-bottom: 1rem;">Sequence Steps</h2>
+              <div id="sequence-steps-timeline" class="sequence-steps">
+                <!-- Steps generated dynamically -->
+              </div>
+              <button id="btn-add-sequence-step" class="btn btn-secondary" style="width: 100%; margin-top: 1.25rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Add Follow-up Step
+              </button>
+            </div>
+
+            <!-- Edit current selected step settings -->
+            <div class="glass-card" id="step-settings-card">
+              <h2 style="font-size: 1.15rem; margin-bottom: 1rem;">Step Settings</h2>
+              <div class="form-group" id="delay-form-group">
+                <label for="step-delay-days">Delay interval (Days)</label>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <input type="number" id="step-delay-days" class="input-glow" min="1" max="30" value="3" style="width: 100px;">
+                  <span class="switch-sub">Days after the previous step is sent</span>
+                </div>
+              </div>
+              <button id="btn-delete-sequence-step" class="btn btn-outline-danger" style="width: 100%; padding: 0.6rem;">
+                Delete This Step
+              </button>
+            </div>
+          </div>
+
+          <!-- Right/Center side: Subject/Body inputs and Live Preview -->
+          <div class="editor-main">
+            <div class="glass-card">
+              <h2 style="font-size: 1.15rem; margin-bottom: 1rem;">Compose Template</h2>
+              
+              <!-- Available Variables Chips -->
+              <label class="switch-sub" style="font-weight: 600; margin-bottom: 0.25rem;">Personalization Tokens (Click to insert):</label>
+              <div id="editor-variables-tokens" class="token-container">
+                <!-- Tokens populated dynamically -->
+              </div>
+
+              <div class="form-group" style="margin-top: 1.5rem;">
+                <label for="template-subject">Email Subject</label>
+                <input type="text" id="template-subject" class="input-glow" placeholder="e.g. Question regarding {{Company}}'s performance ads">
+              </div>
+
+              <div class="form-group">
+                <label for="template-body">Email Body (Rich text HTML supported)</label>
+                <textarea id="template-body" class="textarea-glow" rows="12" placeholder="Hi {{First Name}},&#10;&#10;I noticed {{Company}} has been pushing amazing branding, but is missing out on..."></textarea>
+              </div>
+            </div>
+
+            <!-- Email Live Browser Preview Pane -->
+            <div class="glass-card preview-pane">
+              <div class="preview-pane-header">
+                <h2 style="font-size: 1.15rem;">Live Output Preview</h2>
+              </div>
+              
+              <div class="preview-browser-bar" style="margin-bottom: 1rem;">
+                <span class="preview-dot red"></span>
+                <span class="preview-dot yellow"></span>
+                <span class="preview-dot green"></span>
+                <span class="preview-browser-address">Draft: Subject Preview Window</span>
+              </div>
+
+              <div style="margin-bottom: 1rem; font-size: 0.9rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 0.75rem;">
+                <div style="margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="color: var(--text-muted); font-weight: 500;">To:</span>
+                  <select id="preview-recipient-selector" class="input-glow" style="padding: 0.2rem 0.5rem; font-size: 0.85rem; border-radius: 6px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-glass); color: var(--text-primary); cursor: pointer; min-width: 220px; max-width: 100%; outline: none; margin: 0; font-weight: 600;"></select>
+                  <span id="preview-recipient-email" style="display: none;"></span>
+                </div>
+                <div><span style="color: var(--text-muted); font-weight: 500;">Subject:</span> <span id="preview-recipient-subject" style="font-weight: 600; color: var(--accent-blue);">Draft Subject</span></div>
+              </div>
+
+              <div id="live-email-preview" class="preview-viewport">
+                <!-- Rendered template body replaces dynamic tags in real-time -->
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
+              <button id="btn-save-draft" class="btn btn-secondary">Save Draft</button>
+              <button id="btn-launch-campaign" class="btn btn-primary pulse-glow">
+                Launch & Queue Outreach
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: OUTBOX QUEUE DISPATCH -->
+      <section id="queue-view" class="view-section">
+        <div class="view-header">
+          <div class="view-title">
+            <h1>Outbox Queue & Scheduler</h1>
+            <p>Review scheduled follow-ups, trigger outbox delivery, and fetch replies directly from Google.</p>
+          </div>
+          <div style="display: flex; gap: 1rem;">
+            <button id="btn-scan-replies" class="btn btn-secondary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-teal);"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+              Scan for Replies
+            </button>
+            <button id="btn-process-queue" class="btn btn-primary pulse-glow">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              Process Send Queue
+            </button>
+          </div>
+        </div>
+
+        <!-- Pending Count Alert -->
+        <div id="queue-status-banner" class="glass-card" style="background: rgba(255, 170, 0, 0.04); border-color: rgba(255, 170, 0, 0.15); margin-bottom: 2.5rem; display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 2rem;">
+          <div style="display: flex; gap: 1.25rem; align-items: center;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.2); display: flex; align-items: center; justify-content: center; color: var(--accent-amber);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            </div>
+            <div>
+              <h3 style="font-size: 1.1rem; font-weight: 600;">Browser Dispatch Queue Mode</h3>
+              <p class="switch-sub">Since outreach runs entirely client-side, click "Process Send Queue" to dispatch pending messages.</p>
+            </div>
+          </div>
+          <div style="font-size: 1.15rem; font-weight: 700; color: var(--accent-amber); background: rgba(255, 170, 0, 0.1); padding: 0.5rem 1.25rem; border-radius: 12px;">
+            <span id="queue-pending-indicator-count">0</span> Pending Sends
+          </div>
+        </div>
+
+        <!-- Table displaying scheduled emails -->
+        <div class="glass-card">
+          <h2 style="font-size: 1.25rem; margin-bottom: 1.5rem;">Scheduled Emails</h2>
+          <div class="table-wrapper" style="max-height: 500px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Recipient / Prospect</th>
+                  <th>Campaign</th>
+                  <th>Step #</th>
+                  <th>Scheduled Send Time</th>
+                  <th>Subject Line Preview</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="queue-table-body">
+                <!-- Dynamically populated queue rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: ACTIVITY LOGS -->
+      <section id="logs-view" class="view-section">
+        <div class="view-header">
+          <div class="view-title">
+            <h1>Outreach Activity Log</h1>
+            <p>Review comprehensive diagnostic, transaction, sending, and tracking history.</p>
+          </div>
+          <button id="btn-clear-logs" class="btn btn-outline-danger">
+            Clear Logs
+          </button>
+        </div>
+
+        <div class="glass-card">
+          <div class="table-wrapper" style="max-height: 600px;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 150px;">Time</th>
+                  <th style="width: 120px;">Type</th>
+                  <th style="width: 200px;">Campaign</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="logs-table-body">
+                <!-- Dynamic logs -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      
+    </main>
+  </div>
+
+  <!-- MODAL: SETTINGS & GOOGLE CREDENTIALS -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="glass-card modal-card">
+      <div class="modal-header">
+        <span class="modal-title">Workspace Configuration</span>
+        <button class="modal-close" id="btn-close-settings">&times;</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        
+        <!-- Toggle: Mock Mode -->
+        <div class="switch-container">
+          <div class="switch-label-group">
+            <span style="font-weight: 600; font-size: 0.98rem;">Offline Mock Mode (No credentials)</span>
+            <span class="switch-sub">Simulate OAuth integration, send queries, and reply cycles.</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="settings-mock-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- Google Client ID -->
+        <div class="form-group" id="settings-clientid-group">
+          <label for="settings-client-id">Google Workspace OAuth Client ID</label>
+          <input type="password" id="settings-client-id" class="input-glow" placeholder="Paste your Google OAuth Client ID here">
+          <div id="settings-error-msg" style="color: var(--accent-crimson); font-size: 0.85rem; font-weight: 500; margin-top: 0.5rem; display: none;"></div>
+          <p class="switch-sub" style="margin-top: 0.25rem;">
+            Acquire a Client ID from your <a href="https://console.cloud.google.com" target="_blank" style="color: var(--accent-blue); text-decoration: none;">Google Cloud Console</a>. Enable Gmail API and Google Sheets API.
+          </p>
+          
+          <details style="margin-top: 0.75rem; font-size: 0.82rem; color: var(--text-secondary); background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.75rem;">
+            <summary style="cursor: pointer; color: var(--accent-blue); font-weight: 600; outline: none; list-style-position: inside;">How do I get a Client ID for our team?</summary>
+            <ol style="margin-top: 0.5rem; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem; line-height: 1.5; color: var(--text-secondary);">
+              <li>Go to the <a href="https://console.cloud.google.com" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Google Cloud Console</a>.</li>
+              <li>Create a project (e.g. <em>XYZ Outreach</em>) and enable both the <strong>Gmail API</strong> and <strong>Google Sheets API</strong>.</li>
+              <li>Configure your <strong>OAuth Consent Screen</strong>. Set user type to <strong>Internal</strong> (so only your @wearexyz.com / @wearexyz team can use it).</li>
+              <li>Under <strong>Credentials</strong>, click <em>Create Credentials</em> &rarr; <em>OAuth Client ID</em> &rarr; <em>Web Application</em>.</li>
+              <li>Under <strong>Authorized JavaScript origins</strong>, add this local URL: <code style="background: rgba(255,255,255,0.08); padding: 2px 5px; border-radius: 4px; font-family: monospace; color: var(--text-primary);">http://localhost:8000</code></li>
+              <li>Copy the generated Client ID (which ends with <code style="color: var(--accent-purple); font-family: monospace;">.apps.googleusercontent.com</code>) and paste it in the field above!</li>
+            </ol>
+          </details>
+        </div>
+
+        <!-- Mock timing scale -->
+        <div class="form-group" id="settings-mockscale-group" style="display: none;">
+          <label for="settings-mock-scale">Mock Time Scale (For Sequence delays)</label>
+          <select id="settings-mock-scale" class="select-glow">
+            <option value="10s">1 Day = 10 Seconds (Ultra-Fast Testing)</option>
+            <option value="1m">1 Day = 1 Minute (Live Demonstration)</option>
+            <option value="real">Real Time (Actual Days)</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-save-settings" class="btn btn-primary" style="padding: 0.65rem 1.75rem;">
+          Apply Configuration
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
