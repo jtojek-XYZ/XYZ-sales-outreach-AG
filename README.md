@@ -11,8 +11,10 @@ Here is how your outreach command center looks. Click through the sidebar to nav
 
 * **Dashboard:** See your overall metrics, campaign statuses, and recent activity at a glance.
   ![Dashboard Preview](assets/dashboard.png)
-* **Create Campaign:** Import your target prospects and customize your email templates.
+* **Create Campaign:** Import your target prospects from local files or Google Sheets.
   ![Create Campaign Preview](assets/create_campaign.png)
+* **Customize Email Sequence:** Craft multi-step follow-ups, insert variables, and preview drafts.
+  ![Customize Email Sequence Preview](assets/campaign_customize_email.png)
 * **Outbox Queue:** Review, edit, and dispatch pending scheduled emails.
   ![Outbox Queue Preview](assets/outbox_queue.png)
 * **Activity Logs:** View detailed logs of all sent emails, imports, and received replies.
@@ -57,17 +59,21 @@ Before opening the app, you need to create a Google Sheet containing your target
    - Click the blue **Fetch Sheet** button.
 5. Review the **Recipient List Preview** grid at the bottom to verify that all your contacts and columns loaded correctly.
 
+![Create Campaign](assets/create_campaign.png)
+
 ---
 
 ### Step 3: Design Your Email Sequence with Variables
 Once your contacts are loaded, click **Customize Email Sequence** to design your messages.
+
+![Customize Email Sequence](assets/campaign_customize_email.png)
 
 1. **Insert Variables:**
    - Place your cursor in the Email Subject or Email Body.
    - Click any of the **blue variable chips** above the editor (e.g. `{{First Name}}`, `{{Company}}`) to insert them into your text.
 2. **Review with the Live Preview Selector:**
    - On the right-hand side, look at the **Live Output Preview** panel.
-   - Use the **"To:" dropdown menu** inside the preview pane to cycle through different prospects. You can instantly see exactly what pam's or jim's personalized email will look like before sending!
+   - Use the **"To:" dropdown menu** inside the preview pane to cycle through different prospects. You can instantly see exactly what Pam's or Jim's personalized email will look like before sending!
 3. **Add Follow-Up Steps (Optional):**
    - Click **Add Follow-up Step** to draft a second email.
    - Set the delay (e.g., *Send 3 days after Step 1*).
@@ -84,10 +90,14 @@ Your campaigns do not send emails automatically in the background. You have full
 3. Click the glowing **Process Send Queue** button.
 4. The app will send out your queued emails in real-time through your Google/Gmail account and update their statuses to **Sent**.
 
+![Outbox Queue](assets/outbox_queue.png)
+
 ---
 
 ## 📈 Tracking Results & Automatic Reply Pause
 
 * **Dashboard Analytics:** Look at the glowing meters on your home dashboard to track your overall outreach health, reply rates, and total sends.
+  ![Dashboard](assets/dashboard.png)
 * **Scan for Replies:** On the **Outbox Queue** page, click the **Scan for Replies** button. The app will securely scan your inbox for any incoming client responses.
 * **Auto-Pause Safety:** If a prospect replies to your email, **the app will automatically pause any subsequent scheduled follow-up steps for that prospect** so you can jump in and follow up manually without automated interference!
+  ![Activity Logs](assets/activity_logs.png)
