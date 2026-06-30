@@ -82,7 +82,13 @@
           </button>
         </div>
 
-        <!-- Glowing Stats Counters -->
+        <!-- Global Performance Title -->
+        <h3 style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-purple); margin-bottom: 1rem; margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-purple);"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          Global Performance (All Campaigns)
+        </h3>
+
+        <!-- Glowing Stats Counters (Global) -->
         <div class="stats-grid">
           <div class="glass-card stat-card purple">
             <div class="stat-label">Total Prospects</div>
@@ -106,11 +112,92 @@
           </div>
         </div>
 
+        <!-- Campaign-Specific Performance Title & Active Indicator -->
+        <div class="campaign-stats-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; margin-top: 2rem; flex-wrap: wrap; gap: 1rem;">
+          <h3 style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-blue); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-blue);"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            Campaign-Specific Performance (<span id="dashboard-active-campaign-name" style="color: var(--accent-teal); font-size: 0.85rem; text-transform: none; font-weight: 500;">No Active Campaign</span>)
+          </h3>
+        </div>
+
+        <!-- Glowing Stats Counters (Campaign-Specific) -->
+        <div class="stats-grid" id="campaign-stats-grid">
+          <div class="glass-card stat-card purple">
+            <div class="stat-label">Total Prospects</div>
+            <div id="stat-camp-total-prospects" class="stat-value">0</div>
+            <div class="stat-footer">In selected campaign</div>
+          </div>
+          <div class="glass-card stat-card blue">
+            <div class="stat-label">Emails Dispatched</div>
+            <div id="stat-camp-emails-sent" class="stat-value">0</div>
+            <div class="stat-footer">Successfully sent</div>
+          </div>
+          <div class="glass-card stat-card teal">
+            <div class="stat-label">Replies Received</div>
+            <div id="stat-camp-replies" class="stat-value">0</div>
+            <div class="stat-footer">Active interest detected</div>
+          </div>
+          <div class="glass-card stat-card amber">
+            <div class="stat-label">Reply Rate</div>
+            <div id="stat-camp-reply-rate" class="stat-value">0%</div>
+            <div class="stat-footer">Engagement conversion</div>
+          </div>
+        </div>
+
+        <!-- Campaign Prospects Directory Card -->
+        <div id="campaign-prospects-container" class="glass-card" style="margin-top: 2rem; display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass); padding-bottom: 1rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h2 style="font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-purple);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                Campaign Prospects Directory
+              </h2>
+              <p class="switch-sub" style="margin-top: 0.25rem; font-size: 0.8rem; color: var(--text-muted);">
+                Manage the list of prospects receiving this campaign. Adding individuals queues Step 1 immediately. Deleting cancels any pending sends in the Outbox.
+              </p>
+            </div>
+            <button id="btn-add-prospect-modal" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Add Prospect
+            </button>
+          </div>
+
+          <div class="table-wrapper" style="max-height: 350px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border-glass); font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">
+                  <th style="padding: 0.75rem 1rem;">Recipient Name</th>
+                  <th style="padding: 0.75rem 1rem;">Email Address</th>
+                  <th style="padding: 0.75rem 1rem;">Custom Variables</th>
+                  <th style="padding: 0.75rem 1rem;">Outreach Status</th>
+                  <th style="padding: 0.75rem 1rem; text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="campaign-prospects-list">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Split Grid: Campaign List & Recent Activity Stream -->
         <div class="dashboard-layout">
           <div class="glass-card campaigns-panel">
-            <div class="campaigns-panel-header">
-              <h2 style="font-size: 1.25rem;">Active Campaigns</h2>
+            <div class="campaigns-panel-header" style="display: flex; flex-direction: column; gap: 1rem; align-items: stretch; border-bottom: 1px solid var(--border-glass); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
+              <h2 style="font-size: 1.25rem; margin: 0;">Campaigns</h2>
+              
+              <div class="form-group" style="margin: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                <label for="dashboard-campaign-selector" style="font-size: 0.85rem; color: var(--accent-purple); text-transform: uppercase; letter-spacing: 1.25px; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pulse-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-purple); display: inline-block; box-shadow: 0 0 8px var(--accent-purple);"></span>
+                  Select Active Campaign To Work On:
+                </label>
+                <select id="dashboard-campaign-selector" class="select-glow" style="padding: 0.95rem 1.5rem; font-size: 1.1rem; border-radius: 12px; font-weight: 600; cursor: pointer; background: rgba(0, 0, 0, 0.45); border: 2px solid rgba(138, 43, 226, 0.4); width: 100%; height: auto;">
+                  <!-- Dynamically Populated Campaigns -->
+                </select>
+                <p class="switch-sub" style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">
+                  The selected campaign is active for outbound sending. All others are automatically paused.
+                </p>
+              </div>
             </div>
             <div id="campaigns-list" class="campaigns-list-container">
               <!-- Dynamically Populated Campaigns -->
@@ -281,7 +368,7 @@
               </div>
 
               <div class="form-group">
-                <label for="template-body">Email Body (Rich text HTML supported)</label>
+                <label for="template-body">Email Body (Normal plain text - paragraphs & your Gmail signature are auto-applied)</label>
                 <textarea id="template-body" class="textarea-glow" rows="12" placeholder="Hi {{First Name}},&#10;&#10;I noticed {{Company}} has been pushing amazing branding, but is missing out on..."></textarea>
               </div>
             </div>
@@ -368,13 +455,37 @@
                   <th>Recipient / Prospect</th>
                   <th>Campaign</th>
                   <th>Step #</th>
-                  <th>Scheduled Send Time</th>
                   <th>Subject Line Preview</th>
                   <th style="text-align: right;">Actions</th>
                 </tr>
               </thead>
               <tbody id="queue-table-body">
                 <!-- Dynamically populated queue rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Table displaying already sent emails -->
+        <div class="glass-card" style="margin-top: 2rem;">
+          <h2 style="font-size: 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--accent-teal);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            Sent Emails Log
+          </h2>
+          <div class="table-wrapper" style="max-height: 400px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Recipient / Prospect</th>
+                  <th>Campaign</th>
+                  <th>Step #</th>
+                  <th>Sent Time</th>
+                  <th>Subject Line Preview</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="sent-queue-table-body">
+                <!-- Dynamically populated sent queue rows -->
               </tbody>
             </table>
           </div>
@@ -413,6 +524,68 @@
       </section>
       
     </main>
+  </div>
+
+  <!-- MODAL: EMAIL PREVIEW & VERIFICATION -->
+  <div id="email-preview-modal" class="modal-overlay">
+    <div class="glass-card modal-card" style="max-width: 700px; width: 90%;">
+      <div class="modal-header">
+        <span class="modal-title" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-blue);"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          Verify Outbox Email
+        </span>
+        <button class="modal-close" id="btn-close-email-preview">&times;</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Recipient Prospect</label>
+            <div id="preview-email-recipient" style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem; word-break: break-all;">-</div>
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Campaign / Step</label>
+            <div id="preview-email-campaign" style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem;">-</div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+          <div class="form-group" style="margin: 0;">
+            <label id="preview-email-time-label" style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Scheduled Send Time</label>
+            <div id="preview-email-time" style="font-size: 1rem; font-weight: 600; color: var(--accent-amber); margin-top: 0.25rem;">-</div>
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--border-glass); margin: 0.5rem 0;">
+
+        <!-- Email Subject Box -->
+        <div class="form-group" style="margin: 0;">
+          <label style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Subject Line</label>
+          <div id="preview-email-subject" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.75rem 1rem; font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.4rem; word-break: break-word;">
+            -
+          </div>
+        </div>
+
+        <!-- Email Body HTML preview -->
+        <div class="form-group" style="margin: 0;">
+          <label style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Hydrated Message Body</label>
+          <div id="preview-email-body" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 1.25rem; font-size: 0.95rem; line-height: 1.6; color: #1e293b; margin-top: 0.4rem; max-height: 250px; overflow-y: auto; font-family: sans-serif; min-height: 120px; box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.08);">
+            -
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button id="btn-preview-delete" class="btn btn-outline-danger" style="padding: 0.65rem 1.25rem; display: flex; align-items: center; gap: 0.4rem; font-weight: 600;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          Delete Send
+        </button>
+        <button id="btn-preview-send" class="btn btn-primary pulse-glow" style="padding: 0.65rem 1.5rem; display: flex; align-items: center; gap: 0.4rem; font-weight: 600;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          Send Now
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL: SETTINGS & GOOGLE CREDENTIALS -->
@@ -475,6 +648,85 @@
         <button id="btn-save-settings" class="btn btn-primary" style="padding: 0.65rem 1.75rem;">
           Apply Configuration
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD PROSPECT -->
+  <div id="add-prospect-modal" class="modal-overlay">
+    <div class="glass-card modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <span class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--accent-purple);"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
+          Add Prospect to Campaign
+        </span>
+        <button class="modal-close" id="btn-close-add-prospect">&times;</button>
+      </div>
+
+      <form id="add-prospect-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <div class="form-group" style="margin: 0;">
+          <label for="prospect-add-email" style="font-size: 0.85rem; color: var(--accent-blue); font-weight: 600;">Email Address *</label>
+          <input type="email" id="prospect-add-email" class="input-glow" placeholder="e.g. pam.beesly@wearexyz.com" required style="width: 100%;">
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label for="prospect-add-firstname" style="font-size: 0.85rem; color: var(--accent-blue); font-weight: 600;">First Name</label>
+          <input type="text" id="prospect-add-firstname" class="input-glow" placeholder="e.g. Pam" style="width: 100%;">
+          <p class="switch-sub" style="margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted);">Used for {{First Name}} personalization token.</p>
+        </div>
+
+        <!-- Dynamic Additional Variables Container -->
+        <div id="prospect-add-dynamic-variables" style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <!-- Dynamically populated custom text inputs (e.g. Company) based on other prospects -->
+        </div>
+
+        <div class="modal-footer" style="margin-top: 1rem; padding: 0; border: none; display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" id="btn-cancel-add-prospect" class="btn btn-secondary" style="padding: 0.65rem 1.25rem;">Cancel</button>
+          <button type="submit" class="btn btn-primary pulse-glow" style="padding: 0.65rem 1.5rem;">
+            Add & Schedule Step 1
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: QUEUE PROCESSING HUD -->
+  <div id="queue-processing-modal" class="modal-overlay" style="z-index: 1100;">
+    <div class="glass-card modal-card" style="max-width: 500px; text-align: center; padding: 2.5rem 2rem;">
+      <div style="margin-bottom: 1.5rem;">
+        <div class="spinner-container" style="display: inline-block; position: relative; width: 80px; height: 80px; margin-bottom: 1rem;">
+          <svg class="spinner" viewBox="0 0 50 50" style="animation: rotate 2s linear infinite; width: 100%; height: 100%; stroke: var(--accent-blue); fill: none;">
+            <circle cx="25" cy="25" r="20" stroke-width="4" stroke-dasharray="1, 150" stroke-dashoffset="0" stroke-linecap="round"></circle>
+          </svg>
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent-blue); display: flex; align-items: center; justify-content: center;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          </div>
+        </div>
+        <h2 id="hud-title" style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Outbox Dispatch Engine</h2>
+        <p id="hud-subtitle" style="font-size: 0.9rem; color: var(--accent-blue); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin: 0;">ACTIVE TRANSMISSION</p>
+      </div>
+
+      <!-- Main flashing presentation area -->
+      <div id="hud-flashing-card" class="glass-card" style="background: rgba(255,255,255,0.01); border-color: rgba(255,255,255,0.05); padding: 1.75rem; margin-bottom: 1.5rem; min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.3s ease;">
+        <div id="hud-status" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.5rem;">Preparing pipeline...</div>
+        <div id="hud-recipient-name" style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); transition: all 0.3s ease; text-shadow: 0 0 15px rgba(255,255,255,0.1);">Jane Doe</div>
+        <div id="hud-recipient-email" style="font-size: 0.95rem; color: var(--accent-blue); margin-top: 0.25rem;">jane@example.com</div>
+      </div>
+
+      <!-- Mini-progress meter -->
+      <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          <span id="hud-progress-text">Sending 0 of 0</span>
+          <span id="hud-percent-text">0%</span>
+        </div>
+        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+          <div id="hud-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-teal)); border-radius: 3px; transition: width 0.3s ease;"></div>
+        </div>
+      </div>
+
+      <!-- Scrolling mini transmission log -->
+      <div id="hud-mini-log" style="max-height: 120px; overflow-y: auto; text-align: left; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 0.75rem 1rem; font-family: monospace; font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.4rem; border: 1px solid rgba(255,255,255,0.05); max-height: 110px;">
+        <div style="color: var(--text-muted); font-style: italic;">System ready for dispatch...</div>
       </div>
     </div>
   </div>

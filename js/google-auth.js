@@ -136,6 +136,7 @@ export class GoogleAuth {
     sessionStorage.removeItem('XYZ_Outreach_AccessToken');
     sessionStorage.removeItem('XYZ_Outreach_TokenExpires');
     localStorage.removeItem('XYZ_Outreach_UserEmail');
+    localStorage.removeItem('XYZ_Outreach_CachedSignature');
     
     const clientId = this.getClientId();
     const token = sessionStorage.getItem('XYZ_Outreach_AccessToken');

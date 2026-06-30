@@ -109,6 +109,15 @@ export class GmailService {
   }
 
   /**
+   * Helper to extract clean email address from "Name <email@domain.com>" or "email@domain.com"
+   */
+  static extractEmail(fromHeader) {
+    if (!fromHeader) return '';
+    const match = fromHeader.match(/<([^>]+)>/);
+    return (match ? match[1] : fromHeader).trim().toLowerCase();
+  }
+
+  /**
    * Checks a specific Gmail thread to determine if the prospect has replied.
    * Checks if any message in the thread is from a sender other than the user's email.
    * Returns `{ replied: boolean, replyTimestamp: number|null, replySnippet: string }`
@@ -139,19 +148,31 @@ export class GmailService {
         return { replied: false };
       }
 
-      const userEmail = GoogleAuth.getUserEmail().toLowerCase();
-      const cleanProspectEmail = prospectEmail.toLowerCase();
+      let userEmail = GoogleAuth.getUserEmail().toLowerCase().trim();
+      // Robust fallback: if user email is not set in settings/localStorage, extract it from the first message sent by user
+      if (!userEmail && messages.length > 0) {
+        const firstMsgHeaders = messages[0].payload?.headers || [];
+        const firstMsgFrom = firstMsgHeaders.find(h => h.name.toLowerCase() === 'from')?.value || '';
+        userEmail = this.extractEmail(firstMsgFrom);
+        if (userEmail) {
+          localStorage.setItem('XYZ_Outreach_UserEmail', userEmail);
+        }
+      }
+
+      const cleanProspectEmail = prospectEmail.toLowerCase().trim();
 
       // Look at messages after our initial message
       for (let i = 1; i < messages.length; i++) {
         const msg = messages[i];
         const headers = msg.payload?.headers || [];
         const fromHeader = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
-        
-        const cleanFrom = fromHeader.toLowerCase();
+        const senderEmail = this.extractEmail(fromHeader);
 
-        // If the message is from the prospect (and not us), it's a reply!
-        if (cleanFrom.includes(cleanProspectEmail) && !cleanFrom.includes(userEmail)) {
+        // If the sender matches the prospect's email, and is not the user's email, it's a reply!
+        const isFromProspect = (senderEmail === cleanProspectEmail) || cleanProspectEmail.includes(senderEmail) || senderEmail.includes(cleanProspectEmail);
+        const isFromUser = userEmail ? (senderEmail === userEmail) : false;
+
+        if (isFromProspect && !isFromUser) {
           const dateHeader = headers.find(h => h.name.toLowerCase() === 'date')?.value;
           const timestamp = dateHeader ? new Date(dateHeader).getTime() : Date.now();
           return {
@@ -211,5 +232,46 @@ export class GmailService {
         }
       }, 300);
     });
+  }
+
+  /**
+   * Fetches the user's configured Gmail signature (HTML).
+   * Fallbacks to empty if none exists or offline.
+   */
+  static async fetchGmailSignature() {
+    if (GoogleAuth.isMockMode()) {
+      return `
+<div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 13px; line-height: 1.5; color: #475569; margin-top: 24px; border-top: 1px solid #cbd5e1; padding-top: 12px; max-width: 480px;">
+  <span style="font-weight: bold; color: #1e293b;">Jim Salesperson</span><br>
+  <span style="color: #64748b;">Outreach Specialist | XYZ Growth Agency</span><br>
+  <a href="https://wearexyz.com" target="_blank" style="color: #6366f1; text-decoration: none;">wearexyz.com</a>
+</div>`;
+    }
+
+    const token = GoogleAuth.getToken();
+    if (!token) return '';
+
+    // Check if we have cached it recently in localStorage
+    const cachedSig = localStorage.getItem('XYZ_Outreach_CachedSignature');
+    if (cachedSig) return cachedSig;
+
+    try {
+      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Find the primary sendAs or first with a signature
+        const primarySendAs = data.sendAs?.find(sa => sa.isPrimary) || data.sendAs?.[0];
+        if (primarySendAs && primarySendAs.signature) {
+          const sig = primarySendAs.signature;
+          localStorage.setItem('XYZ_Outreach_CachedSignature', sig);
+          return sig;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch Gmail settings/signature:', e);
+    }
+    return '';
   }
 }

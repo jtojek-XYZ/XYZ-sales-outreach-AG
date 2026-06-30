@@ -197,6 +197,31 @@ export class OutreachDB {
     return prospect;
   }
 
+  static async deleteProspect(id) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(['prospects', 'queue'], 'readwrite');
+      
+      // Delete prospect record
+      tx.objectStore('prospects').delete(id);
+      
+      // Delete their pending queue items from send queue
+      const queueStore = tx.objectStore('queue');
+      const index = queueStore.index('prospectId');
+      const request = index.openCursor(IDBKeyRange.only(id));
+      request.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          queueStore.delete(cursor.primaryKey);
+          cursor.continue();
+        }
+      };
+      
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
   static async getCampaignProspects(campaignId) {
     return this.transaction('prospects', 'readonly', (tx) => {
       const index = tx.objectStore('prospects').index('campaignId');
@@ -253,6 +278,30 @@ export class OutreachDB {
           list.sort((a, b) => a.scheduledTime - b.scheduledTime);
           resolve(list);
         };
+      });
+    });
+  }
+
+  static async getSentQueue() {
+    return this.transaction('queue', 'readonly', (tx) => {
+      const index = tx.objectStore('queue').index('status');
+      const req = index.getAll(IDBKeyRange.only('sent'));
+      return new Promise((resolve) => {
+        req.onsuccess = () => {
+          const list = req.result || [];
+          // Sort descending by sentTime (most recent first)
+          list.sort((a, b) => (b.sentTime || 0) - (a.sentTime || 0));
+          resolve(list);
+        };
+      });
+    });
+  }
+
+  static async getQueueItem(id) {
+    return this.transaction('queue', 'readonly', (tx) => {
+      const req = tx.objectStore('queue').get(id);
+      return new Promise((resolve) => {
+        req.onsuccess = () => resolve(req.result);
       });
     });
   }

@@ -17,6 +17,7 @@ class OutreachApp {
   constructor() {
     this.state = {
       activeView: 'dashboard',
+      selectedDashboardCampaignId: null, // Track selected campaign for dashboard stats
       currentCampaignDraft: {
         id: null,
         name: '',
@@ -25,7 +26,7 @@ class OutreachApp {
           {
             step: 1,
             subjectTemplate: 'Introduction: Agency XYZ Services for {{Company}}',
-            bodyTemplate: '<p>Hi {{First Name}},</p>\n<p>I hope you are doing well.</p>\n<p>I am reaching out from agency XYZ because we admire the work {{Company}} has been doing. We specialize in digital marketing solutions specifically for companies in your space.</p>\n<p>Would you have 10 minutes for a brief call next Tuesday to discuss how we can help scale your outreach?</p>\n<p>Best regards,<br>The XYZ Team</p>',
+            bodyTemplate: 'Hi {{First Name}},\n\nI hope you are doing well.\n\nI am reaching out from agency XYZ because we admire the work {{Company}} has been doing. We specialize in digital marketing solutions specifically for companies in your space.\n\nWould you have 10 minutes for a brief call next Tuesday to discuss how we can help scale your outreach?\n\nBest regards,\nThe XYZ Team',
             delayDays: 0
           }
         ]
@@ -116,7 +117,13 @@ class OutreachApp {
               <div class="campaign-row-meta">Launched ${new Date(c.createdAt).toLocaleDateString()} &bull; ${campaignStats.total} Prospects</div>
             </div>
             <div class="campaign-row-stats">
-              <span class="badge ${c.status}">${c.status}</span>
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-right: 1.5rem;">
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Active:</span>
+                <label class="switch" title="Toggle Campaign Active State" style="margin: 0;">
+                  <input type="checkbox" class="toggle-campaign-active" data-id="${c.id}" ${c.status === 'active' ? 'checked' : ''}>
+                  <span class="slider"></span>
+                </label>
+              </div>
               <div style="text-align: right; min-width: 120px;">
                 <div style="font-weight: 600; font-size: 0.95rem;">${campaignStats.sent} Sends &bull; ${campaignStats.replied} Replies</div>
                 <div style="font-size: 0.75rem; color: var(--text-muted);">${campaignStats.replyRate}% Reply Rate</div>
@@ -131,6 +138,15 @@ class OutreachApp {
           `;
           listContainer.appendChild(row);
         }
+
+        // Bind active toggle switches
+        listContainer.querySelectorAll('.toggle-campaign-active').forEach(toggle => {
+          toggle.addEventListener('change', async (e) => {
+            const id = toggle.getAttribute('data-id');
+            const isActive = e.target.checked;
+            await this.toggleCampaignActive(id, isActive);
+          });
+        });
 
         // Bind edit campaign buttons
         listContainer.querySelectorAll('.btn-edit-camp').forEach(btn => {
@@ -153,6 +169,37 @@ class OutreachApp {
             }
           });
         });
+      }
+
+      // Render the campaign-specific stats
+      await this.renderCampaignSpecificStats();
+
+      // Populate Campaign Selector dropdown on the dashboard
+      const selector = document.getElementById('dashboard-campaign-selector');
+      if (selector) {
+        selector.innerHTML = '';
+        console.log('[Selector Debug] Populating selector. Campaigns fetched from database:', campaigns);
+        
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = campaigns.length === 0 ? 'No campaigns available' : 'None (Pause All)';
+        defaultOpt.style.backgroundColor = '#121826';
+        defaultOpt.style.color = '#f8fafc';
+        selector.appendChild(defaultOpt);
+
+        if (campaigns.length > 0) {
+          campaigns.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            opt.style.backgroundColor = '#121826';
+            opt.style.color = '#f8fafc';
+            if (c.status === 'active') {
+              opt.selected = true;
+            }
+            selector.appendChild(opt);
+          });
+        }
       }
 
       // 3. Fetch & Render Activity Stream (Max 15 items)
@@ -201,6 +248,308 @@ class OutreachApp {
 
     } catch (e) {
       console.error('Error rendering dashboard:', e);
+    }
+  }
+
+  // --- TOGGLE CAMPAIGN ACTIVE STATE ---
+  async toggleCampaignActive(campaignId, isActive) {
+    try {
+      if (isActive) {
+        // Retrieve all campaigns
+        const campaigns = await OutreachDB.getAllCampaigns();
+        
+        // Deactivate all other campaigns in IndexedDB
+        for (const c of campaigns) {
+          if (c.id !== campaignId && c.status === 'active') {
+            await OutreachDB.updateCampaignStatus(c.id, 'paused');
+            await OutreachDB.addLog({
+              id: 'log-' + Math.random().toString(36).substring(2, 9),
+              campaignId: c.id,
+              type: 'info',
+              timestamp: Date.now(),
+              details: `Campaign paused automatically because another campaign was activated.`
+            });
+          }
+        }
+        
+        // Activate current campaign
+        await OutreachDB.updateCampaignStatus(campaignId, 'active');
+        await OutreachDB.addLog({
+          id: 'log-' + Math.random().toString(36).substring(2, 9),
+          campaignId: campaignId,
+          type: 'info',
+          timestamp: Date.now(),
+          details: `Campaign set to active.`
+        });
+        
+        // Initialize sequence engine for this campaign (generate initial queues)
+        try {
+          await SequenceEngine.initializeCampaign(campaignId);
+        } catch (engineErr) {
+          console.warn('SequenceEngine initialization warning:', engineErr.message);
+          await OutreachDB.addLog({
+            id: 'log-' + Math.random().toString(36).substring(2, 9),
+            campaignId: campaignId,
+            type: 'info',
+            timestamp: Date.now(),
+            details: `Activated campaign, but sequence engine warned: ${engineErr.message}`
+          });
+        }
+      } else {
+        // Deactivate current campaign
+        await OutreachDB.updateCampaignStatus(campaignId, 'paused');
+        await OutreachDB.addLog({
+          id: 'log-' + Math.random().toString(36).substring(2, 9),
+          campaignId: campaignId,
+          type: 'info',
+          timestamp: Date.now(),
+          details: `Campaign set to paused.`
+        });
+      }
+      
+      // Update the badge count & re-render dashboard
+      await this.updateQueueBadgeCount();
+      await this.renderDashboard();
+    } catch (e) {
+      console.error('Error toggling campaign status:', e);
+      alert('Failed to toggle campaign active state.');
+    }
+  }
+
+  // --- RENDER CAMPAIGN SPECIFIC STATS ---
+  async renderCampaignSpecificStats() {
+    try {
+      const activeCampaignNameEl = document.getElementById('dashboard-active-campaign-name');
+      const campaigns = await OutreachDB.getAllCampaigns();
+      const activeCampaign = campaigns.find(c => c.status === 'active');
+
+      if (!activeCampaign) {
+        if (activeCampaignNameEl) {
+          activeCampaignNameEl.textContent = 'No Active Campaign';
+        }
+        document.getElementById('stat-camp-total-prospects').textContent = '0';
+        document.getElementById('stat-camp-emails-sent').textContent = '0';
+        document.getElementById('stat-camp-replies').textContent = '0';
+        document.getElementById('stat-camp-reply-rate').textContent = '0%';
+        this.state.selectedDashboardCampaignId = null;
+
+        // Hide prospects list when no campaign is active
+        const directoryContainer = document.getElementById('campaign-prospects-container');
+        if (directoryContainer) {
+          directoryContainer.style.display = 'none';
+        }
+        return;
+      }
+
+      this.state.selectedDashboardCampaignId = activeCampaign.id;
+      if (activeCampaignNameEl) {
+        activeCampaignNameEl.textContent = activeCampaign.name;
+      }
+
+      const stats = await OutreachDB.getStats(activeCampaign.id);
+      document.getElementById('stat-camp-total-prospects').textContent = stats.total;
+      document.getElementById('stat-camp-emails-sent').textContent = stats.sent;
+      document.getElementById('stat-camp-replies').textContent = stats.replied;
+      document.getElementById('stat-camp-reply-rate').textContent = `${stats.replyRate}%`;
+
+      // Render the directory table in real-time
+      await this.renderCampaignProspectsDirectory(activeCampaign.id);
+    } catch (e) {
+      console.warn('Error rendering campaign specific stats:', e);
+    }
+  }
+
+  /**
+   * Renders the directory list table of prospects for the active campaign.
+   */
+  async renderCampaignProspectsDirectory(campaignId) {
+    try {
+      const container = document.getElementById('campaign-prospects-container');
+      if (!container) return;
+
+      const listContainer = document.getElementById('campaign-prospects-list');
+      if (!listContainer) return;
+
+      container.style.display = 'block'; // Show prospects panel
+
+      const prospects = await OutreachDB.getCampaignProspects(campaignId);
+      listContainer.innerHTML = '';
+
+      if (prospects.length === 0) {
+        listContainer.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 0.9rem;">
+              No prospects in this campaign yet. Click 'Add Prospect' to manually add someone!
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      prospects.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border-glass)';
+        tr.style.fontSize = '0.9rem';
+        
+        // Name resolution
+        const name = p.variables['First Name'] || p.variables['Name'] || p.variables['Full Name'] || 'Recipient';
+        
+        // Render dynamic attributes mapped during CSV/Sheets load
+        const customVars = [];
+        Object.entries(p.variables).forEach(([k, v]) => {
+          if (k !== 'First Name' && k !== 'Email' && k !== 'email' && v) {
+            customVars.push(`<span style="background: rgba(255,255,255,0.04); border: 1px solid var(--border-glass); border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; margin-right: 4px; color: var(--text-secondary); display: inline-block;">${k}: ${v}</span>`);
+          }
+        });
+        const varString = customVars.length > 0 ? customVars.join('') : '<span style="color: var(--text-muted); font-style: italic; font-size: 0.8rem;">None</span>';
+
+        // Custom status badge
+        let statusBadge = '';
+        if (p.status === 'queued') {
+          statusBadge = `<span style="background: rgba(138, 43, 226, 0.15); border: 1px solid rgba(138, 43, 226, 0.3); color: var(--accent-purple); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">Queued (Step ${p.currentStep})</span>`;
+        } else if (p.status === 'sent') {
+          statusBadge = `<span style="background: rgba(0, 150, 255, 0.15); border: 1px solid rgba(0, 150, 255, 0.3); color: var(--accent-blue); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">Sent (Step ${p.currentStep})</span>`;
+        } else if (p.status === 'replied') {
+          statusBadge = `<span style="background: rgba(0, 200, 150, 0.15); border: 1px solid rgba(0, 200, 150, 0.3); color: var(--accent-teal); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">Replied (Paused)</span>`;
+        } else if (p.status === 'unsubscribed') {
+          statusBadge = `<span style="background: rgba(255, 69, 0, 0.15); border: 1px solid rgba(255, 69, 0, 0.3); color: var(--accent-crimson); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">Opted Out</span>`;
+        }
+
+        tr.innerHTML = `
+          <td style="padding: 0.75rem 1rem; font-weight: 600; color: var(--text-primary);">${name}</td>
+          <td style="padding: 0.75rem 1rem; color: var(--text-secondary);">${p.email}</td>
+          <td style="padding: 0.75rem 1rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${varString}</td>
+          <td style="padding: 0.75rem 1rem;">${statusBadge}</td>
+          <td style="padding: 0.75rem 1rem; text-align: right;">
+            <button class="btn btn-outline-danger btn-delete-prospect" data-id="${p.id}" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.25rem;" title="Delete Prospect">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              Delete
+            </button>
+          </td>
+        `;
+        listContainer.appendChild(tr);
+      });
+
+      // Bind delete action buttons per prospect
+      listContainer.querySelectorAll('.btn-delete-prospect').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-id');
+          if (confirm('Are you absolutely sure you want to delete this prospect? This cancels all outstanding dispatches in the Outbox for them and removes them from this campaign directory.')) {
+            await OutreachDB.deleteProspect(id);
+            // Refresh stats, outbox badge counts, and table rows
+            await this.renderCampaignSpecificStats();
+            await this.updateQueueBadgeCount();
+            await this.renderQueueView();
+          }
+        });
+      });
+    } catch (e) {
+      console.error('Error rendering prospects directory:', e);
+    }
+  }
+
+  // --- OPEN EMAIL PREVIEW MODAL ---
+  async openEmailPreviewModal(queueItemId) {
+    try {
+      const item = await OutreachDB.getQueueItem(queueItemId);
+      if (!item) {
+        alert('Email item not found.');
+        return;
+      }
+
+      const campaign = await OutreachDB.getCampaign(item.campaignId);
+      const prospect = await OutreachDB.getProspect(item.prospectId);
+
+      // Hydrate Modal Info
+      document.getElementById('preview-email-recipient').innerHTML = `
+        <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary);">${prospect ? prospect.variables['First Name'] || 'Recipient' : 'Unknown Prospect'}</div>
+        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.15rem;">${prospect ? prospect.email : 'No Email'}</div>
+      `;
+
+      document.getElementById('preview-email-campaign').innerHTML = `
+        <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary);">${campaign ? campaign.name : 'Unknown Campaign'}</div>
+        <div style="font-size: 0.85rem; color: var(--accent-blue); margin-top: 0.15rem; font-weight: 600;">Sequence Step ${item.step}</div>
+      `;
+
+      const timeLabel = document.getElementById('preview-email-time-label');
+      const timeVal = document.getElementById('preview-email-time');
+      if (item.status === 'sent') {
+        if (timeLabel) timeLabel.textContent = 'Actual Sent Time';
+        if (timeVal) {
+          timeVal.textContent = new Date(item.sentTime || item.scheduledTime).toLocaleString();
+          timeVal.style.color = 'var(--accent-teal)';
+        }
+      } else {
+        if (timeLabel) timeLabel.textContent = 'Scheduled Send Time';
+        if (timeVal) {
+          timeVal.textContent = new Date(item.scheduledTime).toLocaleString();
+          timeVal.style.color = 'var(--accent-amber)';
+        }
+      }
+
+      document.getElementById('preview-email-subject').textContent = item.subject;
+      
+      // Email body uses HTML templates, so we safely display it inside the preview panel
+      document.getElementById('preview-email-body').innerHTML = item.body || '<p style="color: #64748b; font-style: italic;">No message body compiled.</p>';
+
+      // Bind Send Now inside preview modal
+      const btnSend = document.getElementById('btn-preview-send');
+      const btnDelete = document.getElementById('btn-preview-delete');
+
+      // Remove previous event listeners by cloning buttons
+      const newBtnSend = btnSend.cloneNode(true);
+      const newBtnDelete = btnDelete.cloneNode(true);
+      btnSend.parentNode.replaceChild(newBtnSend, btnSend);
+      btnDelete.parentNode.replaceChild(newBtnDelete, btnDelete);
+
+      if (item.status === 'sent') {
+        newBtnSend.style.display = 'none';
+        newBtnDelete.style.display = 'none';
+      } else {
+        newBtnSend.style.display = 'inline-flex';
+        newBtnDelete.style.display = 'inline-flex';
+      }
+
+      newBtnSend.addEventListener('click', async () => {
+        // Force send item immediately
+        item.scheduledTime = Date.now();
+        await OutreachDB.updateQueueItem(item);
+        
+        newBtnSend.innerHTML = `
+          <span style="display: flex; align-items: center; gap: 0.4rem;">
+            <svg class="spinner" width="14" height="14" viewBox="0 0 50 50" style="animation: rotate 2s linear infinite; stroke: var(--text-primary); fill: none;"><circle cx="25" cy="25" r="20" stroke-width="5" stroke="currentColor" stroke-dasharray="1, 150" stroke-dashoffset="0" stroke-linecap="round"></circle></svg>
+            Sending...
+          </span>
+        `;
+        
+        const processed = await SequenceEngine.processPendingQueue();
+        if (processed > 0) {
+          alert('Message successfully dispatched!');
+        } else {
+          alert('Failed to dispatch message. Check Gmail connection or Activity Logs.');
+        }
+
+        document.getElementById('email-preview-modal').classList.remove('open');
+        await this.renderQueueView();
+        await this.updateQueueBadgeCount();
+      });
+
+      newBtnDelete.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to cancel and delete this scheduled follow-up email?')) {
+          await OutreachDB.deleteQueueItem(item.id);
+          alert('Message successfully removed.');
+          document.getElementById('email-preview-modal').classList.remove('open');
+          await this.renderQueueView();
+          await this.updateQueueBadgeCount();
+        }
+      });
+
+      // Reveal Modal
+      document.getElementById('email-preview-modal').classList.add('open');
+
+    } catch (err) {
+      console.error('Error opening email preview modal:', err);
+      alert('Could not open email preview: ' + err.message);
     }
   }
 
@@ -254,6 +603,7 @@ class OutreachApp {
   // --- OUTBOX QUEUE VIEW ---
   async renderQueueView() {
     try {
+      // 1. RENDER SCHEDULED EMAILS (PENDING ITEMS)
       const pendingItems = await OutreachDB.getPendingQueue();
       const listContainer = document.getElementById('queue-table-body');
       listContainer.innerHTML = '';
@@ -263,80 +613,139 @@ class OutreachApp {
       if (pendingItems.length === 0) {
         listContainer.innerHTML = `
           <tr>
-            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+            <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">
               All dispatch queues are completely clear!
             </td>
           </tr>
         `;
-        return;
-      }
+      } else {
+        for (const item of pendingItems) {
+          const campaign = await OutreachDB.getCampaign(item.campaignId);
+          const prospect = await OutreachDB.getProspect(item.prospectId);
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>
+              <div class="dispatch-cell prospect">
+                <span class="dispatch-cell-main">${prospect ? prospect.variables['First Name'] || 'Recipient' : 'Unknown'}</span>
+                <span class="dispatch-cell-sub">${prospect ? prospect.email : 'Unknown'}</span>
+              </div>
+            </td>
+            <td>${campaign ? campaign.name : 'Unknown Campaign'}</td>
+            <td><span class="step-number" style="width:22px; height:22px; font-size:0.75rem;">${item.step}</span></td>
+            <td class="btn-preview-trigger" data-id="${item.id}" style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary); transition: color 0.2s;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-primary)'" title="Click to Verify Email Content">${item.subject}</td>
+            <td style="text-align: right;">
+              <div style="display: inline-flex; gap: 0.5rem;">
+                <button class="btn btn-secondary btn-preview-queue" data-id="${item.id}" style="padding: 0.4rem; border-radius: 8px;" title="Verify Email Content">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-blue);"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </button>
+                <button class="btn btn-secondary btn-send-now" data-id="${item.id}" style="padding: 0.4rem; border-radius: 8px;" title="Send Instantly">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+                <button class="btn btn-outline-danger btn-delete-queue" data-id="${item.id}" style="padding: 0.4rem; border-radius: 8px;" title="Remove from Outbox">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+              </div>
+            </td>
+          `;
+          listContainer.appendChild(tr);
+        }
 
-      for (const item of pendingItems) {
-        const campaign = await OutreachDB.getCampaign(item.campaignId);
-        const prospect = await OutreachDB.getProspect(item.prospectId);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>
-            <div class="dispatch-cell prospect">
-              <span class="dispatch-cell-main">${prospect ? prospect.variables['First Name'] || 'Recipient' : 'Unknown'}</span>
-              <span class="dispatch-cell-sub">${prospect ? prospect.email : 'Unknown'}</span>
-            </div>
-          </td>
-          <td>${campaign ? campaign.name : 'Unknown Campaign'}</td>
-          <td><span class="step-number" style="width:22px; height:22px; font-size:0.75rem;">${item.step}</span></td>
-          <td style="color: var(--accent-amber);">${new Date(item.scheduledTime).toLocaleString()}</td>
-          <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.subject}</td>
-          <td style="text-align: right;">
-            <div style="display: inline-flex; gap: 0.5rem;">
-              <button class="btn btn-secondary btn-send-now" data-id="${item.id}" style="padding: 0.4rem; border-radius: 8px;" title="Send Instantly">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-              </button>
-              <button class="btn btn-outline-danger btn-delete-queue" data-id="${item.id}" style="padding: 0.4rem; border-radius: 8px;" title="Remove from Outbox">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              </button>
-            </div>
-          </td>
-        `;
-        listContainer.appendChild(tr);
-      }
+        // Bind Preview Queue actions (eye button and clickable subject line)
+        listContainer.querySelectorAll('.btn-preview-queue, .btn-preview-trigger').forEach(el => {
+          el.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = el.getAttribute('data-id');
+            await this.openEmailPreviewModal(id);
+          });
+        });
 
-      // Bind Send Now actions
-      listContainer.querySelectorAll('.btn-send-now').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-id');
-          // Execute single dispatch
-          const pending = await OutreachDB.getPendingQueue();
-          const item = pending.find(q => q.id === id);
-          if (item) {
-            // Override schedule time to make ready instantly
-            item.scheduledTime = Date.now();
-            await OutreachDB.updateQueueItem(item);
-            
-            btn.innerHTML = `<span style="font-size:0.75rem; color:var(--text-muted);">Sending...</span>`;
-            
-            const processed = await SequenceEngine.processPendingQueue();
-            if (processed > 0) {
-              alert('Message successfully sent!');
-            } else {
-              alert('Send dispatch failed. Check console or Activity Logs.');
+        // Bind Send Now actions
+        listContainer.querySelectorAll('.btn-send-now').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            // Execute single dispatch
+            const pending = await OutreachDB.getPendingQueue();
+            const item = pending.find(q => q.id === id);
+            if (item) {
+              // Override schedule time to make ready instantly
+              item.scheduledTime = Date.now();
+              await OutreachDB.updateQueueItem(item);
+              
+              btn.innerHTML = `<span style="font-size:0.75rem; color:var(--text-muted);">Sending...</span>`;
+              
+              const processed = await SequenceEngine.processPendingQueue();
+              if (processed > 0) {
+                alert('Message successfully sent!');
+              } else {
+                alert('Send dispatch failed. Check console or Activity Logs.');
+              }
+              await this.renderQueueView();
+              await this.updateQueueBadgeCount();
             }
-            await this.renderQueueView();
-            await this.updateQueueBadgeCount();
-          }
+          });
         });
-      });
 
-      // Bind Delete Queue Action
-      listContainer.querySelectorAll('.btn-delete-queue').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-id');
-          if (confirm('Cancel and remove this follow-up email from outbox?')) {
-            await OutreachDB.deleteQueueItem(id);
-            await this.renderQueueView();
-            await this.updateQueueBadgeCount();
-          }
+        // Bind Delete Queue Action
+        listContainer.querySelectorAll('.btn-delete-queue').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            if (confirm('Cancel and remove this follow-up email from outbox?')) {
+              await OutreachDB.deleteQueueItem(id);
+              await this.renderQueueView();
+              await this.updateQueueBadgeCount();
+            }
+          });
         });
-      });
+      }
+
+      // 2. RENDER SENT EMAILS (SENT LOGS)
+      const sentItems = await OutreachDB.getSentQueue();
+      const sentContainer = document.getElementById('sent-queue-table-body');
+      if (sentContainer) {
+        sentContainer.innerHTML = '';
+        if (sentItems.length === 0) {
+          sentContainer.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                No emails have been sent from this browser outbox yet.
+              </td>
+            </tr>
+          `;
+        } else {
+          for (const item of sentItems) {
+            const campaign = await OutreachDB.getCampaign(item.campaignId);
+            const prospect = await OutreachDB.getProspect(item.prospectId);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>
+                <div class="dispatch-cell prospect">
+                  <span class="dispatch-cell-main">${prospect ? prospect.variables['First Name'] || 'Recipient' : 'Unknown'}</span>
+                  <span class="dispatch-cell-sub">${prospect ? prospect.email : 'Unknown'}</span>
+                </div>
+              </td>
+              <td>${campaign ? campaign.name : 'Unknown Campaign'}</td>
+              <td><span class="step-number" style="width:22px; height:22px; font-size:0.75rem; background: rgba(0, 200, 150, 0.15); border: 1px solid rgba(0, 200, 150, 0.3); color: var(--accent-teal);">${item.step}</span></td>
+              <td style="color: var(--accent-teal); font-weight: 500;">${item.sentTime ? new Date(item.sentTime).toLocaleString() : 'N/A'}</td>
+              <td class="btn-preview-trigger" data-id="${item.id}" style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary); transition: color 0.2s;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-primary)'" title="Click to Verify Email Content">${item.subject}</td>
+              <td style="text-align: right;">
+                <button class="btn btn-secondary btn-preview-queue" data-id="${item.id}" style="padding: 0.4rem; border-radius: 8px;" title="Verify Sent Email Content">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-blue);"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </button>
+              </td>
+            `;
+            sentContainer.appendChild(tr);
+          }
+
+          // Bind Preview actions for Sent table
+          sentContainer.querySelectorAll('.btn-preview-queue, .btn-preview-trigger').forEach(el => {
+            el.addEventListener('click', async (e) => {
+              e.stopPropagation();
+              const id = el.getAttribute('data-id');
+              await this.openEmailPreviewModal(id);
+            });
+          });
+        }
+      }
 
     } catch (e) {
       console.error('Error rendering queue view:', e);
@@ -448,11 +857,19 @@ class OutreachApp {
   }
 
   // --- INITIALIZE EMAIL TEMPLATES EDITOR VIEW ---
-  initTemplatesEditor() {
+  async initTemplatesEditor() {
     const prospects = this.state.currentCampaignDraft.prospects;
     if (prospects.length === 0) {
       alert('Please upload a prospect list before designing templates.');
       return;
+    }
+
+    // Fetch and cache the sender's actual Gmail signature
+    try {
+      this.state.userSignature = await GmailService.fetchGmailSignature();
+    } catch (err) {
+      console.warn('Could not fetch Gmail signature:', err);
+      this.state.userSignature = '';
     }
 
     // Hydrate preview recipient selector dropdown
@@ -462,6 +879,8 @@ class OutreachApp {
       prospects.forEach((p, idx) => {
         const opt = document.createElement('option');
         opt.value = idx;
+        opt.style.backgroundColor = '#121826';
+        opt.style.color = '#f8fafc';
         const name = p.variables['First Name'] || '';
         const comp = p.variables['Company'] || '';
         const details = [name, comp].filter(Boolean).join(' - ');
@@ -476,7 +895,32 @@ class OutreachApp {
     const tokensContainer = document.getElementById('editor-variables-tokens');
     tokensContainer.innerHTML = '';
 
-    const firstProspectVars = Object.keys(prospects[0].variables);
+    // Collect all unique variable keys across all prospects for comprehensive chips
+    const allVarKeysSet = new Set();
+    prospects.forEach(p => {
+      if (p.variables) {
+        Object.keys(p.variables).forEach(k => {
+          allVarKeysSet.add(k);
+        });
+      }
+    });
+
+    let firstProspectVars = Array.from(allVarKeysSet);
+
+    // Guarantee 'First Name' token is available as a chip if we have any name-like column
+    if (!firstProspectVars.includes('First Name')) {
+      const hasNameColumn = firstProspectVars.some(v => {
+        const lv = v.toLowerCase().replace(/[\s_-]/g, '');
+        return lv === 'name' || lv === 'fullname' || lv === 'recipientname' || lv === 'prospectname';
+      });
+      if (hasNameColumn) {
+        firstProspectVars.push('First Name');
+      }
+    }
+
+    // Sort variable tokens alphabetically for premium visual consistency
+    firstProspectVars.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
     firstProspectVars.forEach(variable => {
       const chip = document.createElement('span');
       chip.className = 'token-chip';
@@ -611,13 +1055,15 @@ class OutreachApp {
 
     // Substitute tokens
     const previewSubject = SequenceEngine.substitute(subjectRaw, sampleProspect.variables);
-    const previewBody = SequenceEngine.substitute(bodyRaw, sampleProspect.variables);
+    
+    // Compile plain text email body to rich HTML with paragraphs and user's authentic signature
+    const previewBodyHtml = SequenceEngine.compileTemplateBody(bodyRaw, sampleProspect.variables, this.state.userSignature || '');
 
     document.getElementById('preview-recipient-email').textContent = sampleProspect.email;
     document.getElementById('preview-recipient-subject').textContent = previewSubject || '(No Subject Line)';
     
     const viewport = document.getElementById('live-email-preview');
-    viewport.innerHTML = previewBody || `<span style="color:#a5b1c2; font-style:italic;">Draft email content is currently empty. Use the compose window above to start crafting your message!</span>`;
+    viewport.innerHTML = previewBodyHtml || `<span style="color:#a5b1c2; font-style:italic;">Draft email content is currently empty. Use the compose window above to start crafting your message!</span>`;
   }
 
   // --- SYSTEM LOGS REFRESH AND SYNC SIDEBAR COUNTER ---
@@ -699,6 +1145,178 @@ class OutreachApp {
       });
     });
 
+    // Dashboard Campaign Selector pulldown
+    const campSelector = document.getElementById('dashboard-campaign-selector');
+    if (campSelector) {
+      campSelector.addEventListener('change', async (e) => {
+        const campaignId = e.target.value;
+        if (campaignId) {
+          await this.toggleCampaignActive(campaignId, true);
+        } else {
+          // If "None" is chosen, deactivate any currently active campaign
+          const campaigns = await OutreachDB.getAllCampaigns();
+          const activeCampaign = campaigns.find(c => c.status === 'active');
+          if (activeCampaign) {
+            await this.toggleCampaignActive(activeCampaign.id, false);
+          } else {
+            await this.renderDashboard();
+          }
+        }
+      });
+    }
+
+    // --- ADD PROSPECT MODAL EVENTS ---
+    const btnOpenAddProspect = document.getElementById('btn-add-prospect-modal');
+    const modalAddProspect = document.getElementById('add-prospect-modal');
+    const btnCloseAddProspect = document.getElementById('btn-close-add-prospect');
+    const btnCancelAddProspect = document.getElementById('btn-cancel-add-prospect');
+    const formAddProspect = document.getElementById('add-prospect-form');
+    const dynamicVariablesContainer = document.getElementById('prospect-add-dynamic-variables');
+
+    if (btnOpenAddProspect && modalAddProspect) {
+      btnOpenAddProspect.addEventListener('click', async () => {
+        const campaignId = this.state.selectedDashboardCampaignId;
+        if (!campaignId) {
+          alert('Please select an active campaign first.');
+          return;
+        }
+
+        // Fetch existing prospects to discover custom variables
+        const prospects = await OutreachDB.getCampaignProspects(campaignId);
+        
+        // Find all custom variable keys (excluding First Name and Email)
+        const allKeys = new Set();
+        prospects.forEach(p => {
+          Object.keys(p.variables).forEach(k => {
+            if (k !== 'First Name' && k !== 'Email' && k !== 'email') {
+              allKeys.add(k);
+            }
+          });
+        });
+
+        // Clear dynamic container
+        dynamicVariablesContainer.innerHTML = '';
+
+        // If no prospects exist, we could add a default 'Company' field to be helpful
+        if (allKeys.size === 0) {
+          allKeys.add('Company');
+        }
+
+        // Render input fields for each custom variable!
+        allKeys.forEach(key => {
+          const div = document.createElement('div');
+          div.className = 'form-group';
+          div.style.margin = '0';
+          div.innerHTML = `
+            <label for="prospect-var-${key}" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">${key}</label>
+            <input type="text" id="prospect-var-${key}" data-key="${key}" class="input-glow" placeholder="e.g. Value for ${key}" style="width: 100%;">
+          `;
+          dynamicVariablesContainer.appendChild(div);
+        });
+
+        // Open modal
+        modalAddProspect.classList.add('open');
+        document.getElementById('prospect-add-email').focus();
+      });
+    }
+
+    const closeAddProspectModal = () => {
+      if (modalAddProspect) {
+        modalAddProspect.classList.remove('open');
+        if (formAddProspect) formAddProspect.reset();
+        if (dynamicVariablesContainer) dynamicVariablesContainer.innerHTML = '';
+      }
+    };
+
+    if (btnCloseAddProspect) {
+      btnCloseAddProspect.addEventListener('click', closeAddProspectModal);
+    }
+    if (btnCancelAddProspect) {
+      btnCancelAddProspect.addEventListener('click', closeAddProspectModal);
+    }
+
+    // Modal background click closes it
+    if (modalAddProspect) {
+      modalAddProspect.addEventListener('click', (e) => {
+        if (e.target === modalAddProspect) {
+          closeAddProspectModal();
+        }
+      });
+    }
+
+    if (formAddProspect) {
+      formAddProspect.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const campaignId = this.state.selectedDashboardCampaignId;
+        if (!campaignId) {
+          alert('No campaign selected.');
+          return;
+        }
+
+        const email = document.getElementById('prospect-add-email').value.trim();
+        const firstName = document.getElementById('prospect-add-firstname').value.trim();
+
+        if (!email) {
+          alert('Email address is required.');
+          return;
+        }
+
+        // Compile variables
+        const variables = {
+          'First Name': firstName || 'Recipient',
+          'Email': email
+        };
+
+        // Collect dynamic variables
+        dynamicVariablesContainer.querySelectorAll('input').forEach(input => {
+          const key = input.getAttribute('data-key');
+          const val = input.value.trim();
+          variables[key] = val;
+        });
+
+        const newProspect = {
+          id: 'p-' + Math.random().toString(36).substring(2, 9),
+          campaignId: campaignId,
+          email: email,
+          variables: variables,
+          status: 'queued',
+          currentStep: 0
+        };
+
+        try {
+          // Save prospect
+          await OutreachDB.saveProspects([newProspect]);
+
+          // Trigger sequence engine to initialize this new prospect and enqueue Step 1!
+          await SequenceEngine.initializeCampaign(campaignId);
+
+          // Close modal
+          closeAddProspectModal();
+
+          // Refresh UI
+          await this.renderCampaignSpecificStats();
+          await this.updateQueueBadgeCount();
+          await this.renderQueueView(); // update Outbox Queue in real time!
+          
+          await OutreachDB.addLog({
+            id: 'log-' + Math.random().toString(36).substring(2, 9),
+            campaignId: campaignId,
+            type: 'info',
+            timestamp: Date.now(),
+            details: `Manually added prospect ${email} and scheduled Step 1.`
+          });
+          
+          // Re-render dashboard activity feed
+          await this.renderDashboard();
+
+        } catch (err) {
+          console.error('Error adding prospect:', err);
+          alert('Failed to add prospect: ' + err.message);
+        }
+      });
+    }
+
     // 2. Google OAuth trigger
     document.getElementById('google-auth-btn').addEventListener('click', () => {
       if (GoogleAuth.isAuthorized()) {
@@ -752,6 +1370,17 @@ class OutreachApp {
     document.getElementById('settings-modal').addEventListener('click', (e) => {
       if (e.target === document.getElementById('settings-modal')) {
         document.getElementById('settings-modal').classList.remove('open');
+      }
+    });
+
+    // 4. Email Preview Modal Close triggers
+    document.getElementById('btn-close-email-preview').addEventListener('click', () => {
+      document.getElementById('email-preview-modal').classList.remove('open');
+    });
+
+    document.getElementById('email-preview-modal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('email-preview-modal')) {
+        document.getElementById('email-preview-modal').classList.remove('open');
       }
     });
 
@@ -827,12 +1456,11 @@ class OutreachApp {
       document.getElementById('importer-card').style.display = 'grid';
       document.getElementById('edit-mode-notice-card').style.display = 'none';
 
-      // Reset templates sequence
       this.state.currentCampaignDraft.templates = [
         {
           step: 1,
           subjectTemplate: 'Introduction: Agency XYZ Services for {{Company}}',
-          bodyTemplate: '<p>Hi {{First Name}},</p>\n<p>I hope you are doing well.</p>\n<p>I am reaching out from agency XYZ because we admire the work {{Company}} has been doing. We specialize in digital marketing solutions specifically for companies in your space.</p>\n<p>Would you have 10 minutes for a brief call next Tuesday to discuss how we can help scale your outreach?</p>\n<p>Best regards,<br>The XYZ Team</p>',
+          bodyTemplate: 'Hi {{First Name}},\n\nI hope you are doing well.\n\nI am reaching out from agency XYZ because we admire the work {{Company}} has been doing. We specialize in digital marketing solutions specifically for companies in your space.\n\nWould you have 10 minutes for a brief call next Tuesday to discuss how we can help scale your outreach?\n\nBest regards,\nThe XYZ Team',
           delayDays: 0
         }
       ];
@@ -953,7 +1581,7 @@ class OutreachApp {
       templates.push({
         step: nextStep,
         subjectTemplate: `Re: ${templates[0].subjectTemplate}`,
-        bodyTemplate: `<p>Hi {{First Name}},</p>\n<p>Just checking in on my previous email. I know you are busy scaling {{Company}}!</p>\n<p>Do you have any availability for a brief call next week?</p>`,
+        bodyTemplate: 'Hi {{First Name}},\n\nJust checking in on my previous email. I know you are busy scaling {{Company}}!\n\nDo you have any availability for a brief call next week?',
         delayDays: 3
       });
 
@@ -1023,23 +1651,142 @@ class OutreachApp {
       btn.innerHTML = `<span class="pulse-glow" style="color:var(--accent-amber);">Dispatching Outbox...</span>`;
       btn.disabled = true;
 
+      // HUD elements
+      const hudModal = document.getElementById('queue-processing-modal');
+      const hudTitle = document.getElementById('hud-title');
+      const hudSubtitle = document.getElementById('hud-subtitle');
+      const hudStatus = document.getElementById('hud-status');
+      const hudName = document.getElementById('hud-recipient-name');
+      const hudEmail = document.getElementById('hud-recipient-email');
+      const hudProgressText = document.getElementById('hud-progress-text');
+      const hudPercentText = document.getElementById('hud-percent-text');
+      const hudProgressBar = document.getElementById('hud-progress-bar');
+      const hudMiniLog = document.getElementById('hud-mini-log');
+      const hudFlashingCard = document.getElementById('hud-flashing-card');
+
+      let totalCount = 0;
+
       try {
-        let logsBuffer = [];
-        const sends = await SequenceEngine.processPendingQueue((statusMsg) => {
-          console.log(statusMsg);
-          // Highlight in activity log
+        const sends = await SequenceEngine.processPendingQueue((data) => {
+          if (!data) return;
+
+          switch (data.status) {
+            case 'start':
+              totalCount = data.total;
+              // Clear previous log, initialize HUD state
+              hudMiniLog.innerHTML = `<div style="color: var(--text-muted); font-style: italic;">Initiating transmission pipeline for ${totalCount} follow-ups...</div>`;
+              hudProgressBar.style.width = '0%';
+              hudProgressText.textContent = `Preparing 1 of ${totalCount}`;
+              hudPercentText.textContent = '0%';
+              hudTitle.textContent = 'Outbox Dispatch Engine';
+              hudSubtitle.textContent = 'ACTIVE TRANSMISSION';
+              hudSubtitle.style.color = 'var(--accent-blue)';
+              hudName.textContent = 'Preparing Pipeline';
+              hudEmail.textContent = 'Checking pending dispatches';
+              hudStatus.textContent = 'Connecting...';
+              
+              // Open modal
+              hudModal.classList.add('open');
+              break;
+
+            case 'sending': {
+              const name = data.prospect ? (data.prospect.variables['First Name'] || data.prospect.variables['Name'] || 'Recipient') : 'Recipient';
+              const email = data.prospect ? data.prospect.email : 'Unknown';
+              const idx = data.index + 1;
+
+              hudName.textContent = name;
+              hudEmail.textContent = email;
+              hudStatus.textContent = 'Transmitting Message...';
+
+              // Animate flash of Name card
+              hudFlashingCard.classList.remove('hud-flash-active');
+              void hudFlashingCard.offsetHeight; // trigger reflow
+              hudFlashingCard.classList.add('hud-flash-active');
+
+              const logDiv = document.createElement('div');
+              logDiv.style.color = 'var(--text-muted)';
+              logDiv.textContent = `> Launching Step ${data.item.step} for ${name} (${email})...`;
+              hudMiniLog.appendChild(logDiv);
+              hudMiniLog.scrollTop = hudMiniLog.scrollHeight;
+              break;
+            }
+
+            case 'success': {
+              const name = data.prospect ? (data.prospect.variables['First Name'] || data.prospect.variables['Name'] || 'Recipient') : 'Recipient';
+              const idx = data.index + 1;
+              const total = totalCount || 1;
+
+              const pct = Math.round((idx / total) * 100);
+              hudProgressBar.style.width = `${pct}%`;
+              hudProgressText.textContent = `Sending ${idx} of ${total}`;
+              hudPercentText.textContent = `${pct}%`;
+              hudStatus.textContent = 'Message Delivered!';
+
+              const logDiv = document.createElement('div');
+              logDiv.style.color = 'var(--accent-teal)';
+              logDiv.style.fontWeight = '600';
+              logDiv.textContent = `✓ Dispatched Step ${data.item.step} successfully to ${name}!`;
+              hudMiniLog.appendChild(logDiv);
+              hudMiniLog.scrollTop = hudMiniLog.scrollHeight;
+              break;
+            }
+
+            case 'failed': {
+              const name = data.prospect ? (data.prospect.variables['First Name'] || data.prospect.variables['Name'] || 'Recipient') : 'Recipient';
+              
+              hudStatus.textContent = 'Delivery Failed';
+
+              const logDiv = document.createElement('div');
+              logDiv.style.color = 'var(--accent-danger)';
+              logDiv.style.fontWeight = '600';
+              logDiv.textContent = `✗ Failed sending Step ${data.item.step} to ${name}: ${data.error ? data.error.message : 'Unknown Error'}`;
+              hudMiniLog.appendChild(logDiv);
+              hudMiniLog.scrollTop = hudMiniLog.scrollHeight;
+              break;
+            }
+
+            case 'complete': {
+              hudTitle.textContent = 'Transmission Completed';
+              hudSubtitle.textContent = 'OUTBOX PIPELINE CLEAN';
+              hudSubtitle.style.color = 'var(--accent-teal)';
+              hudName.textContent = 'All Sent!';
+              hudEmail.textContent = `Dispatched ${data.successful} of ${data.total} emails.`;
+              hudStatus.textContent = 'Idle';
+              hudProgressBar.style.width = '100%';
+              hudPercentText.textContent = '100%';
+
+              const logDiv = document.createElement('div');
+              logDiv.style.color = 'var(--accent-blue)';
+              logDiv.style.fontWeight = 'bold';
+              logDiv.style.marginTop = '0.5rem';
+              logDiv.textContent = `--- Pipeline complete. Successfully dispatched ${data.successful} emails. ---`;
+              hudMiniLog.appendChild(logDiv);
+              hudMiniLog.scrollTop = hudMiniLog.scrollHeight;
+
+              // Hide modal after completion
+              setTimeout(() => {
+                hudModal.classList.remove('open');
+              }, 1200);
+              break;
+            }
+          }
         });
 
         await this.renderQueueView();
         await this.updateQueueBadgeCount();
         await this.renderDashboard();
         
-        alert(`Successfully dispatched ${sends} outreach emails!`);
+        if (sends > 0) {
+          alert(`Successfully dispatched ${sends} outreach emails!`);
+        } else {
+          alert('No pending emails scheduled for delivery at this time.');
+        }
       } catch (err) {
         alert(`Error running send queue: ${err.message}`);
       } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
+        hudModal.classList.remove('open');
       }
     });
 
@@ -1119,6 +1866,23 @@ class OutreachApp {
     }));
 
     try {
+      if (status === 'active') {
+        // Pause all other campaigns
+        const campaigns = await OutreachDB.getAllCampaigns();
+        for (const c of campaigns) {
+          if (c.id !== campaignId && c.status === 'active') {
+            await OutreachDB.updateCampaignStatus(c.id, 'paused');
+            await OutreachDB.addLog({
+              id: 'log-' + Math.random().toString(36).substring(2, 9),
+              campaignId: c.id,
+              type: 'info',
+              timestamp: Date.now(),
+              details: `Campaign paused automatically because another campaign was activated.`
+            });
+          }
+        }
+      }
+
       if (isEdit) {
         // 1. Overwrite Campaign record
         await OutreachDB.createCampaign(campaign);

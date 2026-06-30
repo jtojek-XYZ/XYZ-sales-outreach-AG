@@ -47,6 +47,31 @@ export class CSVParser {
         record.variables[header] = value;
       });
 
+      // Normalize or extract 'First Name' for ease of template use
+      const varKeys = Object.keys(record.variables);
+      const existingFirstNameKey = varKeys.find(k => k.toLowerCase().replace(/[\s_-]/g, '') === 'firstname');
+      
+      if (existingFirstNameKey && record.variables[existingFirstNameKey]) {
+        // If they had a first name column with a different casing/spacing, normalize it to 'First Name'
+        if (existingFirstNameKey !== 'First Name') {
+          record.variables['First Name'] = record.variables[existingFirstNameKey];
+        }
+      } else {
+        // No explicit first name found. Try to extract from a general name column
+        const nameKey = varKeys.find(k => {
+          const lk = k.toLowerCase().replace(/[\s_-]/g, '');
+          return lk === 'name' || lk === 'fullname' || lk === 'recipientname' || lk === 'prospectname';
+        });
+        if (nameKey && record.variables[nameKey]) {
+          const nameVal = record.variables[nameKey].trim();
+          if (nameVal) {
+            // Get the first word of the name
+            const firstWord = nameVal.split(/\s+/)[0];
+            record.variables['First Name'] = firstWord;
+          }
+        }
+      }
+
       if (record.email) {
         records.push(record);
       }

@@ -15,9 +15,30 @@ export class SequenceEngine {
    */
   static substitute(templateText, variables) {
     if (!templateText) return '';
+    const vars = variables || {};
     return templateText.replace(/\{\{([^}]+)\}\}/g, (match, tag) => {
       const key = tag.trim();
-      return variables[key] !== undefined ? variables[key] : match;
+      if (vars[key] !== undefined && vars[key] !== '') {
+        return vars[key];
+      }
+      
+      // Smart dynamic extraction/fallback for First Name
+      if (key === 'First Name') {
+        const varKeys = Object.keys(vars);
+        const nameKey = varKeys.find(k => {
+          const lk = k.toLowerCase().replace(/[\s_-]/g, '');
+          return lk === 'name' || lk === 'fullname' || lk === 'recipientname' || lk === 'prospectname';
+        });
+        if (nameKey && vars[nameKey]) {
+          const nameVal = vars[nameKey].trim();
+          if (nameVal) {
+            return nameVal.split(/\s+/)[0];
+          }
+        }
+        return 'Recipient'; // Elegant fallback so users never send un-hydrated tags
+      }
+
+      return match;
     });
   }
 
@@ -41,6 +62,9 @@ export class SequenceEngine {
       throw new Error('Could not find Step 1 email template.');
     }
 
+    // Fetch the authentic user signature
+    const userSig = await GmailService.fetchGmailSignature();
+
     const queueItems = [];
     const updatedProspects = [];
 
@@ -51,7 +75,7 @@ export class SequenceEngine {
         
         // Compile subject and body for queue previewing
         const subject = this.substitute(step1Template.subjectTemplate, prospect.variables);
-        const body = this.substitute(step1Template.bodyTemplate, prospect.variables);
+        const body = this.compileTemplateBody(step1Template.bodyTemplate, prospect.variables, userSig);
 
         queueItems.push({
           id,
@@ -98,9 +122,17 @@ export class SequenceEngine {
     const readyItems = pendingItems.filter(item => item.scheduledTime <= now);
     if (readyItems.length === 0) return 0;
 
+    if (onProgressCallback) {
+      onProgressCallback({
+        status: 'start',
+        total: readyItems.length
+      });
+    }
+
     let successfulSends = 0;
 
-    for (const item of readyItems) {
+    for (let i = 0; i < readyItems.length; i++) {
+      const item = readyItems[i];
       // Re-verify that campaign is still active (not paused/completed)
       const campaign = await OutreachDB.getCampaign(item.campaignId);
       if (!campaign || campaign.status !== 'active') {
@@ -116,7 +148,14 @@ export class SequenceEngine {
 
       try {
         if (onProgressCallback) {
-          onProgressCallback(`Sending Step ${item.step} to ${prospect.email}...`);
+          onProgressCallback({
+            status: 'sending',
+            prospect,
+            item,
+            index: i
+          });
+          // Artificially pause for 800ms so the user can see/feel the name transition
+          await new Promise(resolve => setTimeout(resolve, 800));
         }
 
         // Send the actual email
@@ -156,6 +195,17 @@ export class SequenceEngine {
 
         successfulSends++;
 
+        if (onProgressCallback) {
+          onProgressCallback({
+            status: 'success',
+            prospect,
+            item,
+            index: i
+          });
+          // Artificially pause for 450ms to appreciate the success state
+          await new Promise(resolve => setTimeout(resolve, 450));
+        }
+
       } catch (err) {
         console.error(`Failed to send to ${prospect.email}:`, err);
         
@@ -172,7 +222,28 @@ export class SequenceEngine {
           timestamp: Date.now(),
           details: `Error sending Step ${item.step} to ${prospect.email}: ${err.message}`
         });
+
+        if (onProgressCallback) {
+          onProgressCallback({
+            status: 'failed',
+            prospect,
+            item,
+            index: i,
+            error: err
+          });
+          await new Promise(resolve => setTimeout(resolve, 900));
+        }
       }
+    }
+
+    if (onProgressCallback) {
+      onProgressCallback({
+        status: 'complete',
+        total: readyItems.length,
+        successful: successfulSends
+      });
+      // Pause 1.5s on the completion state before resolving
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
     return successfulSends;
@@ -208,9 +279,12 @@ export class SequenceEngine {
 
     const scheduledTime = Date.now() + delayMs;
 
+    // Fetch user signature and compile template body as rich HTML
+    const userSig = await GmailService.fetchGmailSignature();
+
     // Precompile next step templates for outbox visualization
     const subject = this.substitute(nextTemplate.subjectTemplate, prospect.variables);
-    const body = this.substitute(nextTemplate.bodyTemplate, prospect.variables);
+    const body = this.compileTemplateBody(nextTemplate.bodyTemplate, prospect.variables, userSig);
 
     const queueItem = {
       id: 'q-' + Math.random().toString(36).substring(2, 9),
@@ -291,10 +365,52 @@ export class SequenceEngine {
         const prospect = await OutreachDB.getProspect(item.prospectId);
         if (prospect) {
           item.subject = this.substitute(template.subjectTemplate, prospect.variables);
-          item.body = this.substitute(template.bodyTemplate, prospect.variables);
+          
+          // Fetch signature to compile rich HTML email body
+          const userSig = await GmailService.fetchGmailSignature();
+          item.body = this.compileTemplateBody(template.bodyTemplate, prospect.variables, userSig);
           await OutreachDB.updateQueueItem(item);
         }
       }
     }
+  }
+
+  /**
+   * Compiles plain text template with variables, converts to HTML paragraphs,
+   * and appends the user's authentic Gmail signature.
+   */
+  static compileTemplateBody(bodyTemplateText, variables, userSignature = '') {
+    if (!bodyTemplateText) return '';
+    
+    // 1. Substitute personalization tokens first
+    const hydratedText = this.substitute(bodyTemplateText, variables);
+    
+    // 2. Normalize and strip any pre-existing HTML tags if older templates exist,
+    // to unify under clean, beautiful plain text editor rendering.
+    let cleanText = hydratedText;
+    if (cleanText.includes('<p>') || cleanText.includes('<br>')) {
+      cleanText = cleanText
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<p[^>]*>/gi, '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]+>/g, ''); // strip any other html tags
+    }
+
+    // Convert plain text line breaks to HTML paragraphs
+    const paragraphs = cleanText.split(/\n\s*\n/);
+    let htmlBody = paragraphs
+      .map(p => {
+        const line = p.trim().replace(/\n/g, '<br>');
+        return line ? `<p style="margin-top: 0; margin-bottom: 16px; line-height: 1.6; font-size: 14.5px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1e293b;">${line}</p>` : '';
+      })
+      .filter(Boolean)
+      .join('');
+
+    // 3. Append the user's actual Gmail/GSI signature if present
+    if (userSignature && userSignature.trim()) {
+      htmlBody += `<br><br>${userSignature}`;
+    }
+
+    return htmlBody;
   }
 }
