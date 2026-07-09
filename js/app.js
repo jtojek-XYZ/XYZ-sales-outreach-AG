@@ -81,6 +81,8 @@ class OutreachApp {
       this.renderQueueView();
     } else if (viewName === 'logs') {
       this.renderLogsView();
+    } else if (viewName === 'create') {
+      this.validateCampaignDraftCreation();
     }
   }
 
@@ -854,6 +856,65 @@ class OutreachApp {
       });
       tbody.appendChild(tr);
     });
+
+    // Auto-update create campaign validation checks when list is rendered
+    this.validateCampaignDraftCreation();
+  }
+
+  // --- DYNAMIC CAMPAIGN SETUP FORM VALIDATOR ---
+  validateCampaignDraftCreation() {
+    const campaignNameInput = document.getElementById('campaign-name');
+    const name = campaignNameInput ? campaignNameInput.value.trim() : '';
+    const prospects = this.state.currentCampaignDraft.prospects || [];
+    const isEdit = !!this.state.currentCampaignDraft.id;
+
+    const hasName = name.length > 0;
+    const hasLeads = prospects.length > 0;
+
+    const chkName = document.getElementById('chk-name');
+    const chkLeads = document.getElementById('chk-leads');
+    const btnInitialize = document.getElementById('btn-initialize-campaign');
+
+    // Update Campaign Name checklist item
+    if (chkName) {
+      if (hasName) {
+        chkName.classList.remove('chk-invalid');
+        chkName.classList.add('chk-valid');
+        chkName.querySelector('.chk-icon').innerHTML = '✓';
+      } else {
+        chkName.classList.remove('chk-valid');
+        chkName.classList.add('chk-invalid');
+        chkName.querySelector('.chk-icon').innerHTML = '1';
+      }
+    }
+
+    // Update Recipient List checklist item
+    if (chkLeads) {
+      if (hasLeads) {
+        chkLeads.classList.remove('chk-invalid');
+        chkLeads.classList.add('chk-valid');
+        chkLeads.querySelector('.chk-icon').innerHTML = '✓';
+      } else {
+        chkLeads.classList.remove('chk-valid');
+        chkLeads.classList.add('chk-invalid');
+        chkLeads.querySelector('.chk-icon').innerHTML = '2';
+      }
+    }
+
+    // Update primary button disabled state and text
+    if (btnInitialize) {
+      if (isEdit) {
+        btnInitialize.innerHTML = 'Update Campaign Details &rarr;';
+      } else {
+        btnInitialize.innerHTML = 'Initialize Campaign & Continue &rarr;';
+      }
+
+      if (hasName && hasLeads) {
+        btnInitialize.removeAttribute('disabled');
+      } else {
+        btnInitialize.setAttribute('disabled', 'true');
+      }
+    }
   }
 
   // --- INITIALIZE EMAIL TEMPLATES EDITOR VIEW ---
@@ -1534,16 +1595,39 @@ class OutreachApp {
       }
     });
 
-    // Create Navigation Continue
-    document.getElementById('btn-to-editor').addEventListener('click', () => {
-      const campName = document.getElementById('campaign-name').value.trim();
-      if (!campName) {
-        alert('Please provide a name for this outreach campaign.');
-        return;
-      }
-      this.state.currentCampaignDraft.name = campName;
-      this.initTemplatesEditor();
-    });
+    // Campaign Setup Form Listeners & Navigation
+    const nameInput = document.getElementById('campaign-name');
+    if (nameInput) {
+      nameInput.addEventListener('input', () => {
+        this.validateCampaignDraftCreation();
+      });
+    }
+
+    const btnInitialize = document.getElementById('btn-initialize-campaign');
+    if (btnInitialize) {
+      btnInitialize.addEventListener('click', () => {
+        const campName = document.getElementById('campaign-name').value.trim();
+        if (!campName) {
+          alert('Please provide a name for this outreach campaign.');
+          return;
+        }
+        this.state.currentCampaignDraft.name = campName;
+
+        // Trigger the celebratory success splash!
+        const splash = document.getElementById('campaign-creation-success-splash');
+        if (splash) {
+          splash.classList.add('show');
+          
+          // Play micro-animation, then transition to editor view after 1400ms
+          setTimeout(() => {
+            splash.classList.remove('show');
+            this.initTemplatesEditor();
+          }, 1400);
+        } else {
+          this.initTemplatesEditor();
+        }
+      });
+    }
 
     document.getElementById('btn-back-to-create').addEventListener('click', () => {
       this.switchView('create');

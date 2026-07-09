@@ -12,35 +12,36 @@
 :root {
   --font-primary: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   
-  /* HSL Colors */
-  --bg-dark-obsidian: hsl(222, 28%, 6%);
-  --bg-dark-slate: hsl(222, 24%, 10%);
-  --bg-card: rgba(18, 24, 38, 0.55);
-  --bg-card-hover: rgba(28, 36, 56, 0.7);
-  --border-glass: rgba(255, 255, 255, 0.06);
-  --border-glass-active: rgba(255, 255, 255, 0.15);
+  /* Layered Glassmorphic Colors */
+  --bg-dark-obsidian: hsl(222, 28%, 5%);
+  --bg-dark-slate: hsl(222, 24%, 8%);
+  --bg-card: rgba(13, 20, 33, 0.45);
+  --bg-card-hover: rgba(20, 28, 45, 0.6);
+  --border-glass: rgba(255, 255, 255, 0.065);
+  --border-glass-active: rgba(255, 255, 255, 0.14);
   
+  /* Text Contrast Hierarchy */
   --text-primary: hsl(210, 20%, 98%);
-  --text-secondary: hsl(215, 15%, 72%);
-  --text-muted: hsl(215, 12%, 50%);
+  --text-secondary: hsl(215, 15%, 75%);
+  --text-muted: hsl(215, 12%, 52%);
   
-  /* Glowing Neon Accents */
-  --accent-blue: hsl(210, 100%, 55%);
-  --accent-purple: hsl(270, 95%, 65%);
-  --accent-teal: hsl(165, 95%, 45%);
-  --accent-amber: hsl(38, 100%, 55%);
-  --accent-crimson: hsl(355, 95%, 60%);
+  /* Glowing Neon Accents (Refined for luxury feel) */
+  --accent-blue: hsl(212, 100%, 58%);
+  --accent-purple: hsl(265, 95%, 68%);
+  --accent-teal: hsl(162, 90%, 46%);
+  --accent-amber: hsl(38, 95%, 53%);
+  --accent-crimson: hsl(355, 90%, 58%);
   
   /* Gradient Sweeps */
   --grad-primary: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
-  --grad-success: linear-gradient(135deg, hsl(165, 95%, 45%), hsl(195, 100%, 45%));
+  --grad-success: linear-gradient(135deg, var(--accent-teal), hsl(195, 100%, 45%));
   --grad-warning: linear-gradient(135deg, var(--accent-amber), hsl(15, 100%, 55%));
   --grad-dark: linear-gradient(180deg, var(--bg-dark-obsidian), var(--bg-dark-slate));
   
-  /* Animations & Shadow */
-  --shadow-premium: 0 12px 40px -10px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 25px -5px rgba(110, 68, 255, 0.35);
-  --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  /* Premium Shadow & Transition Values */
+  --shadow-premium: 0 16px 45px -12px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.03) inset;
+  --shadow-glow: 0 0 30px -4px rgba(110, 68, 255, 0.3);
+  --transition-smooth: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); /* Apple Ease-Out */
 }
 
 /* --- BASE STYLES --- */
@@ -68,14 +69,19 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-dark-obsidian);
+  background: rgba(13, 20, 33, 0.2);
+  backdrop-filter: blur(10px);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 /* --- STRUCTURE LAYOUT --- */
@@ -87,8 +93,9 @@ body {
 /* Sidebar Navigation */
 .sidebar {
   width: 280px;
-  background: rgba(12, 17, 28, 0.75);
-  backdrop-filter: blur(20px);
+  background: rgba(10, 15, 26, 0.72);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-right: 1px solid var(--border-glass);
   padding: 2.5rem 1.5rem;
   display: flex;
@@ -96,6 +103,7 @@ body {
   position: fixed;
   height: 100vh;
   z-index: 100;
+  box-shadow: 10px 0 40px -15px rgba(0, 0, 0, 0.5);
 }
 
 .sidebar-logo {
@@ -237,10 +245,11 @@ body {
 /* --- REUSABLE CARD COMPONENTS (GLASSMORPHISM) --- */
 .glass-card {
   background: var(--bg-card);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
   border: 1px solid var(--border-glass);
-  border-radius: 24px;
-  padding: 2rem;
+  border-radius: 20px;
+  padding: 2.25rem;
   box-shadow: var(--shadow-premium);
   transition: var(--transition-smooth);
 }
@@ -248,6 +257,8 @@ body {
 .glass-card:hover {
   background: var(--bg-card-hover);
   border-color: var(--border-glass-active);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.05) inset;
 }
 
 /* --- METRIC METERS (GLOWING COUNTERS) --- */
@@ -263,22 +274,21 @@ body {
   overflow: hidden;
 }
 
-.stat-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
+.stat-card.blue {
+  background: radial-gradient(circle at top right, rgba(0, 150, 255, 0.08), var(--bg-card));
+}
+.stat-card.purple {
+  background: radial-gradient(circle at top right, rgba(168, 85, 247, 0.08), var(--bg-card));
+}
+.stat-card.teal {
+  background: radial-gradient(circle at top right, rgba(0, 230, 160, 0.08), var(--bg-card));
+}
+.stat-card.amber {
+  background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.08), var(--bg-card));
 }
 
-.stat-card.blue::after { background: var(--accent-blue); }
-.stat-card.purple::after { background: var(--accent-purple); }
-.stat-card.teal::after { background: var(--accent-teal); }
-.stat-card.amber::after { background: var(--accent-amber); }
-
 .stat-label {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--text-secondary);
@@ -286,11 +296,12 @@ body {
 }
 
 .stat-value {
-  font-size: 3rem;
+  font-size: 2.75rem;
   font-weight: 700;
-  line-height: 1.1;
+  letter-spacing: -0.03em;
+  line-height: 1;
   margin: 0.5rem 0;
-  background: linear-gradient(135deg, #fff 40%, rgba(255,255,255,0.7));
+  background: linear-gradient(135deg, #ffffff 40%, hsl(215, 15%, 80%));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -578,39 +589,62 @@ body {
 /* --- GRID PREVIEW TABLES --- */
 .table-wrapper {
   overflow-x: auto;
-  border: 1px solid var(--border-glass);
-  border-radius: 16px;
   margin: 1.5rem 0;
-  max-height: 350px;
+  max-height: 380px;
 }
 
 table {
+  border-collapse: separate;
+  border-spacing: 0 10px; /* Isolated breathing room between rows */
   width: 100%;
-  border-collapse: collapse;
   font-size: 0.9rem;
   text-align: left;
 }
 
 th, td {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border-glass);
+  padding: 1.1rem 1.25rem; /* Enhanced cell breathing room */
 }
 
 th {
-  background: rgba(255, 255, 255, 0.03);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 1.25rem;
+  border-bottom: none !important;
   position: sticky;
   top: 0;
   z-index: 10;
+  background: transparent;
 }
 
-tr:last-child td {
-  border-bottom: none;
+tr {
+  background: rgba(13, 20, 33, 0.22);
+  transition: var(--transition-smooth);
 }
 
-tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+tbody tr:hover {
+  background: rgba(20, 28, 45, 0.55);
+  transform: scale(1.006) translateY(-1px);
+  box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.4);
+}
+
+td {
+  border-top: 1px solid var(--border-glass) !important;
+  border-bottom: 1px solid var(--border-glass) !important;
+}
+
+td:first-child {
+  border-left: 1px solid var(--border-glass) !important;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+td:last-child {
+  border-right: 1px solid var(--border-glass) !important;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 /* --- INTERACTIVE SPLIT TEMPLATE EDITOR --- */
@@ -1039,5 +1073,238 @@ input:checked + .slider:before {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
+  }
+}
+
+/* --- CAMPAIGN SETUP PROGRESS CHECKLIST --- */
+.chk-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.chk-item .chk-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1.5px solid currentColor;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.chk-item.chk-invalid {
+  color: var(--text-muted);
+  border-color: rgba(255, 255, 255, 0.03);
+}
+
+.chk-item.chk-valid {
+  color: var(--accent-teal);
+  background: rgba(0, 230, 160, 0.05);
+  border-color: rgba(0, 230, 160, 0.15);
+  box-shadow: 0 0 15px -3px rgba(0, 230, 160, 0.15);
+}
+
+.chk-item.chk-valid .chk-icon {
+  background: var(--accent-teal);
+  color: hsl(222, 28%, 6%);
+  border-color: var(--accent-teal);
+  transform: scale(1.1);
+}
+
+/* --- GLOWING BUTTON TRANSITIONS --- */
+#btn-initialize-campaign[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+#btn-initialize-campaign:not([disabled]) {
+  opacity: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  background: var(--grad-primary);
+  color: white;
+  box-shadow: var(--shadow-glow);
+  animation: pulse-glow 2.5s infinite;
+}
+
+#btn-initialize-campaign:not([disabled]):hover {
+  filter: brightness(1.15);
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px -3px rgba(110, 68, 255, 0.5);
+}
+
+/* --- FULLSCREEN CELEBRATION SPLASH OVERLAY --- */
+.success-splash-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2000;
+  background: rgba(6, 9, 15, 0.88);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.success-splash-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  text-align: center;
+  transform: scale(0.85);
+  transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.success-splash-overlay.show .splash-content {
+  transform: scale(1);
+}
+
+.splash-ring-container {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.splash-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: var(--accent-teal);
+  border-right-color: var(--accent-blue);
+  border-bottom-color: var(--accent-purple);
+  animation: neonSpin 1.4s linear infinite;
+}
+
+.splash-checkmark-box {
+  position: absolute;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(0, 230, 160, 0.1);
+  border: 1.5px solid rgba(0, 230, 160, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.3);
+}
+
+.success-splash-overlay.show .splash-checkmark-box {
+  animation: rubberBandPop 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards 0.2s;
+}
+
+.splash-checkmark {
+  width: 44px;
+  height: 44px;
+  stroke: var(--accent-teal);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.splash-checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 3.5;
+  stroke-miterlimit: 10;
+  stroke: rgba(0, 230, 160, 0.15);
+  fill: none;
+}
+
+.splash-checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+
+.success-splash-overlay.show .splash-checkmark-check {
+  animation: drawCheck 0.65s cubic-bezier(0.65, 0, 0.45, 1) forwards 0.6s;
+}
+
+.splash-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-shadow: 0 0 25px rgba(0, 230, 160, 0.3);
+  margin-top: 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.splash-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+/* --- SPLASH KEYFRAME ANIMATIONS --- */
+@keyframes drawCheck {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes rubberBandPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  75% {
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes neonSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }

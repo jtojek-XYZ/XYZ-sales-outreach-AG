@@ -78,7 +78,7 @@
           </div>
           <button class="btn btn-primary" id="btn-quick-create">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            Launch Campaign
+            Create New Campaign
           </button>
         </div>
 
@@ -202,7 +202,7 @@
             <div id="campaigns-list" class="campaigns-list-container">
               <!-- Dynamically Populated Campaigns -->
               <div class="no-data-placeholder" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
-                <p>No outreach campaigns launched yet. Click 'Launch Campaign' to begin!</p>
+                <p>No outreach campaigns created yet. Click 'Create New Campaign' to begin!</p>
               </div>
             </div>
           </div>
@@ -300,10 +300,24 @@
             </table>
           </div>
 
-          <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
-            <button id="btn-cancel-create" class="btn btn-secondary btn-back-dashboard">Cancel</button>
-            <button id="btn-to-editor" class="btn btn-primary">
-              Customize Email Sequence &rarr;
+        </div>
+
+        <!-- Campaign Setup Footer Actions -->
+        <div class="glass-card" id="create-campaign-footer" style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; transition: var(--transition-smooth);">
+          <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;">
+            <div class="chk-item chk-invalid" id="chk-name" style="display: flex; align-items: center; gap: 0.6rem;">
+              <span class="chk-icon">1</span>
+              <span>Name your campaign</span>
+            </div>
+            <div class="chk-item chk-invalid" id="chk-leads" style="display: flex; align-items: center; gap: 0.6rem;">
+              <span class="chk-icon">2</span>
+              <span>Load your email list</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <button class="btn btn-secondary btn-back-dashboard">Cancel</button>
+            <button id="btn-initialize-campaign" class="btn btn-primary" disabled>
+              Initialize Campaign & Continue &rarr;
             </button>
           </div>
         </div>
@@ -400,11 +414,17 @@
               </div>
             </div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
-              <button id="btn-save-draft" class="btn btn-secondary">Save Draft</button>
-              <button id="btn-launch-campaign" class="btn btn-primary pulse-glow">
-                Launch & Queue Outreach
-              </button>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+              <div style="display: flex; gap: 1rem;">
+                <button id="btn-save-draft" class="btn btn-secondary">Save Draft</button>
+                <button id="btn-launch-campaign" class="btn btn-primary pulse-glow">
+                  Launch & Queue Outreach
+                </button>
+              </div>
+              <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; font-style: italic;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-blue);"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Note: Launching queues your campaign. Emails are not sent immediately until you dispatch them from the queue.
+              </div>
             </div>
           </div>
         </div>
@@ -728,6 +748,23 @@
       <div id="hud-mini-log" style="max-height: 120px; overflow-y: auto; text-align: left; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 0.75rem 1rem; font-family: monospace; font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.4rem; border: 1px solid rgba(255,255,255,0.05); max-height: 110px;">
         <div style="color: var(--text-muted); font-style: italic;">System ready for dispatch...</div>
       </div>
+    </div>
+  </div>
+
+  <!-- FULLSCREEN CELEBRATION SPLASH OVERLAY -->
+  <div id="campaign-creation-success-splash" class="success-splash-overlay">
+    <div class="splash-content">
+      <div class="splash-ring-container">
+        <div class="splash-ring"></div>
+        <div class="splash-checkmark-box">
+          <svg class="splash-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <circle class="splash-checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+            <path class="splash-checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+        </div>
+      </div>
+      <h2 class="splash-title">Campaign Initialized!</h2>
+      <p class="splash-subtitle">Setting up sequence templates...</p>
     </div>
   </div>
 
