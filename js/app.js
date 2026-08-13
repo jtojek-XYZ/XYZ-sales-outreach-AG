@@ -18,6 +18,7 @@ class OutreachApp {
     this.state = {
       activeView: 'dashboard',
       selectedDashboardCampaignId: null, // Track selected campaign for dashboard stats
+      selectedQueueCampaignId: null, // Track selected campaign for outbox queue
       currentCampaignDraft: {
         id: null,
         name: '',
@@ -40,16 +41,35 @@ class OutreachApp {
   async init() {
     console.log('XYZ Outreach App initializing...');
     
-    // Initialize Auth & GSI script
-    await GoogleAuth.init();
-    this.updateAuthProfileUI();
-
-    // Check query params or local db on load
-    await this.renderDashboard();
-    await this.updateQueueBadgeCount();
-
-    // Setup All Event Listeners
+    // 1. Setup All Event Listeners first so UI interactions always work
     this.setupEventListeners();
+
+    // 2. Initialize Auth & GSI script
+    try {
+      await GoogleAuth.init();
+      this.updateAuthProfileUI();
+    } catch (authErr) {
+      console.warn('GoogleAuth init warning:', authErr);
+    }
+
+    // 3. Render Dashboard, Sync Badge, and Pre-render Queue View
+    try {
+      await this.renderDashboard();
+    } catch (dashErr) {
+      console.error('Error rendering dashboard on init:', dashErr);
+    }
+
+    try {
+      await this.updateQueueBadgeCount();
+    } catch (badgeErr) {
+      console.error('Error updating queue badge on init:', badgeErr);
+    }
+
+    try {
+      await this.renderQueueView();
+    } catch (queueErr) {
+      console.error('Error rendering queue view on init:', queueErr);
+    }
   }
 
   // --- SPA VIEW TRANSITIONS ---
@@ -201,6 +221,17 @@ class OutreachApp {
             }
             selector.appendChild(opt);
           });
+
+          const activeCamp = campaigns.find(c => c.status === 'active');
+          if (activeCamp) {
+            selector.value = activeCamp.id;
+            this.state.selectedDashboardCampaignId = activeCamp.id;
+            if (!this.state.selectedQueueCampaignId) {
+              this.state.selectedQueueCampaignId = activeCamp.id;
+            }
+          } else {
+            selector.value = '';
+          }
         }
       }
 
@@ -257,6 +288,7 @@ class OutreachApp {
   async toggleCampaignActive(campaignId, isActive) {
     try {
       if (isActive) {
+        this.state.selectedQueueCampaignId = campaignId;
         // Retrieve all campaigns
         const campaigns = await OutreachDB.getAllCampaigns();
         
@@ -309,9 +341,10 @@ class OutreachApp {
         });
       }
       
-      // Update the badge count & re-render dashboard
+      // Update the badge count & re-render dashboard and queue view
       await this.updateQueueBadgeCount();
       await this.renderDashboard();
+      await this.renderQueueView(this.state.selectedQueueCampaignId);
     } catch (e) {
       console.error('Error toggling campaign status:', e);
       alert('Failed to toggle campaign active state.');
@@ -524,7 +557,11 @@ class OutreachApp {
           </span>
         `;
         
-        const processed = await SequenceEngine.processPendingQueue();
+        if (campaign && campaign.status !== 'active') {
+          await this.toggleCampaignActive(campaign.id, true);
+        }
+
+        const processed = await SequenceEngine.processPendingQueue(item.campaignId);
         if (processed > 0) {
           alert('Message successfully dispatched!');
         } else {
@@ -532,7 +569,7 @@ class OutreachApp {
         }
 
         document.getElementById('email-preview-modal').classList.remove('open');
-        await this.renderQueueView();
+        await this.renderQueueView(this.state.selectedQueueCampaignId);
         await this.updateQueueBadgeCount();
       });
 
@@ -541,7 +578,7 @@ class OutreachApp {
           await OutreachDB.deleteQueueItem(item.id);
           alert('Message successfully removed.');
           document.getElementById('email-preview-modal').classList.remove('open');
-          await this.renderQueueView();
+          await this.renderQueueView(this.state.selectedQueueCampaignId);
           await this.updateQueueBadgeCount();
         }
       });
@@ -602,39 +639,209 @@ class OutreachApp {
     }
   }
 
+  // Helper to safely extract prospect display name
+  getProspectDisplayName(prospect) {
+    if (!prospect) return 'Recipient';
+    if (prospect.variables) {
+      if (prospect.variables['First Name']) return prospect.variables['First Name'];
+      if (prospect.variables['Name']) return prospect.variables['Name'];
+      if (prospect.variables['Full Name']) return prospect.variables['Full Name'];
+    }
+    if (prospect.name) return prospect.name;
+    if (prospect.email) return prospect.email;
+    return 'Recipient';
+  }
+
   // --- OUTBOX QUEUE VIEW ---
-  async renderQueueView() {
+  async renderQueueView(campaignId = null) {
     try {
-      // 1. RENDER SCHEDULED EMAILS (PENDING ITEMS)
-      const pendingItems = await OutreachDB.getPendingQueue();
+      const campaigns = await OutreachDB.getAllCampaigns();
+      let activeCampaign = campaigns.find(c => (c.status || '').toLowerCase() === 'active');
+
+      // If no campaign is explicitly active, default to first campaign
+      if (!activeCampaign && campaigns.length > 0) {
+        activeCampaign = campaigns[0];
+      }
+
+      // Determine target campaign
+      let targetCampaignId = campaignId;
+      if (!targetCampaignId && activeCampaign) {
+        targetCampaignId = activeCampaign.id;
+      } else if (!targetCampaignId && this.state.selectedQueueCampaignId && campaigns.some(c => c.id === this.state.selectedQueueCampaignId)) {
+        targetCampaignId = this.state.selectedQueueCampaignId;
+      } else if (!targetCampaignId && campaigns.length > 0) {
+        targetCampaignId = campaigns[0].id;
+      }
+
+      this.state.selectedQueueCampaignId = targetCampaignId;
+      const selectedCampaign = campaigns.find(c => c.id === targetCampaignId);
+
+      // 1. Populate Campaign Selector
+      const campSelector = document.getElementById('queue-campaign-selector');
+      if (campSelector) {
+        campSelector.innerHTML = '';
+        if (campaigns.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'No campaigns available';
+          opt.style.backgroundColor = '#121826';
+          opt.style.color = '#f8fafc';
+          campSelector.appendChild(opt);
+        } else {
+          campaigns.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            const isActive = (c.status || '').toLowerCase() === 'active';
+            opt.textContent = `${c.name}${isActive ? ' ● (Active)' : ' (Paused)'}`;
+            opt.style.backgroundColor = '#121826';
+            opt.style.color = '#f8fafc';
+            if (c.id === targetCampaignId) {
+              opt.selected = true;
+            }
+            campSelector.appendChild(opt);
+          });
+
+          // Explicitly assign select element's value property
+          if (targetCampaignId) {
+            campSelector.value = targetCampaignId;
+          }
+        }
+      }
+
+      // 2. Update Status Pill & Quick Activate Button
+      const statusPill = document.getElementById('queue-campaign-status-pill');
+      const btnActivate = document.getElementById('btn-queue-activate-camp');
+      if (statusPill && btnActivate) {
+        if (!selectedCampaign) {
+          statusPill.innerHTML = `No Campaign`;
+          statusPill.style.background = 'rgba(148, 163, 184, 0.15)';
+          statusPill.style.borderColor = 'rgba(148, 163, 184, 0.3)';
+          statusPill.style.color = 'var(--text-muted)';
+          btnActivate.style.display = 'none';
+        } else if ((selectedCampaign.status || '').toLowerCase() === 'active') {
+          statusPill.innerHTML = `● Active Campaign`;
+          statusPill.style.background = 'rgba(0, 200, 150, 0.15)';
+          statusPill.style.borderColor = 'rgba(0, 200, 150, 0.3)';
+          statusPill.style.color = 'var(--accent-teal)';
+          btnActivate.style.display = 'none';
+        } else {
+          statusPill.innerHTML = `❚❚ Paused Campaign`;
+          statusPill.style.background = 'rgba(255, 170, 0, 0.15)';
+          statusPill.style.borderColor = 'rgba(255, 170, 0, 0.3)';
+          statusPill.style.color = 'var(--accent-amber)';
+          btnActivate.style.display = 'inline-block';
+        }
+      }
+
+      // 3. Update Queue Banner & Section Badges
+      const bannerTitle = document.getElementById('queue-banner-title');
+      const bannerDesc = document.getElementById('queue-banner-desc');
+      const scheduledBadge = document.getElementById('queue-scheduled-camp-badge');
+      const sentBadge = document.getElementById('queue-sent-camp-badge');
+
+      const campName = selectedCampaign ? selectedCampaign.name : 'No Campaign';
+      const isCampActive = selectedCampaign && (selectedCampaign.status || '').toLowerCase() === 'active';
+      const statusSuffix = isCampActive ? '● Active' : '❚❚ Paused';
+      const statusColor = isCampActive ? 'var(--accent-teal)' : 'var(--accent-amber)';
+
+      if (bannerTitle && bannerDesc) {
+        if (selectedCampaign) {
+          bannerTitle.innerHTML = `Outbox Dispatch Queue: <span style="color: var(--accent-teal);">${selectedCampaign.name}</span>`;
+          if (isCampActive) {
+            bannerDesc.textContent = `Review scheduled messages and click "Process Send Queue" to dispatch pending follow-ups for this campaign.`;
+          } else {
+            bannerDesc.textContent = `This campaign is currently paused. Activate it to allow delivery or click "Process Send Queue" to activate and dispatch now.`;
+          }
+        } else {
+          bannerTitle.textContent = `Browser Dispatch Queue Mode`;
+          bannerDesc.textContent = `No outreach campaigns found. Create a new campaign to begin scheduling and dispatching messages.`;
+        }
+      }
+
+      if (scheduledBadge) {
+        if (selectedCampaign) {
+          scheduledBadge.innerHTML = `Campaign: <strong style="color: #fff; margin: 0 4px;">${campName}</strong> <span style="color: ${statusColor}; font-size: 0.75rem;">(${statusSuffix})</span>`;
+          scheduledBadge.style.display = 'inline-flex';
+          scheduledBadge.style.alignItems = 'center';
+        } else {
+          scheduledBadge.textContent = 'No Campaign Selected';
+        }
+      }
+
+      if (sentBadge) {
+        if (selectedCampaign) {
+          sentBadge.innerHTML = `Campaign: <strong style="color: #fff; margin: 0 4px;">${campName}</strong> <span style="color: ${statusColor}; font-size: 0.75rem;">(${statusSuffix})</span>`;
+          sentBadge.style.display = 'inline-flex';
+          sentBadge.style.alignItems = 'center';
+        } else {
+          sentBadge.textContent = 'No Campaign Selected';
+        }
+      }
+
+      // Auto-ensure campaign prospects have Step 1 queued if needed
+      if (targetCampaignId) {
+        try {
+          await SequenceEngine.initializeCampaign(targetCampaignId);
+        } catch (initErr) {
+          // Ignore if already initialized or prospects empty
+        }
+      }
+
+      // 4. Fetch Pending and Sent items for selected campaign
+      const pendingItems = targetCampaignId ? await OutreachDB.getPendingQueue(targetCampaignId) : [];
+      const sentItems = targetCampaignId ? await OutreachDB.getSentQueue(targetCampaignId) : [];
+
+      // 5. Update Pending Indicator Count and Process Button
+      const pendingCountEl = document.getElementById('queue-pending-indicator-count');
+      if (pendingCountEl) pendingCountEl.textContent = pendingItems.length;
+
+      const btnProcess = document.getElementById('btn-process-queue');
+      if (btnProcess) {
+        if (selectedCampaign) {
+          btnProcess.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Process Send Queue (${pendingItems.length})
+          `;
+          btnProcess.disabled = pendingItems.length === 0;
+        } else {
+          btnProcess.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Process Send Queue
+          `;
+          btnProcess.disabled = true;
+        }
+      }
+
+      // 6. Render Scheduled Pending Emails
       const listContainer = document.getElementById('queue-table-body');
       listContainer.innerHTML = '';
 
-      document.getElementById('queue-pending-indicator-count').textContent = pendingItems.length;
-
       if (pendingItems.length === 0) {
+        const emptyMsg = selectedCampaign 
+          ? `All dispatch queues for "${selectedCampaign.name}" are completely clear!`
+          : `No campaigns available. Create a campaign to start queuing outreach.`;
         listContainer.innerHTML = `
           <tr>
             <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-              All dispatch queues are completely clear!
+              ${emptyMsg}
             </td>
           </tr>
         `;
       } else {
         for (const item of pendingItems) {
-          const campaign = await OutreachDB.getCampaign(item.campaignId);
           const prospect = await OutreachDB.getProspect(item.prospectId);
+          const prospectName = this.getProspectDisplayName(prospect);
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>
               <div class="dispatch-cell prospect">
-                <span class="dispatch-cell-main">${prospect ? prospect.variables['First Name'] || 'Recipient' : 'Unknown'}</span>
+                <span class="dispatch-cell-main">${prospectName}</span>
                 <span class="dispatch-cell-sub">${prospect ? prospect.email : 'Unknown'}</span>
               </div>
             </td>
-            <td>${campaign ? campaign.name : 'Unknown Campaign'}</td>
+            <td>${selectedCampaign ? selectedCampaign.name : 'Campaign'}</td>
             <td><span class="step-number" style="width:22px; height:22px; font-size:0.75rem;">${item.step}</span></td>
-            <td class="btn-preview-trigger" data-id="${item.id}" style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary); transition: color 0.2s;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-primary)'" title="Click to Verify Email Content">${item.subject}</td>
+            <td class="btn-preview-trigger" data-id="${item.id}" style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary); transition: color 0.2s;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-primary)'" title="Click to Verify Email Content">${item.subject || '(No Subject)'}</td>
             <td style="text-align: right;">
               <div style="display: inline-flex; gap: 0.5rem;">
                 <button class="btn btn-secondary btn-preview-queue" data-id="${item.id}" style="padding: 0.4rem; border-radius: 8px;" title="Verify Email Content">
@@ -665,23 +872,23 @@ class OutreachApp {
         listContainer.querySelectorAll('.btn-send-now').forEach(btn => {
           btn.addEventListener('click', async () => {
             const id = btn.getAttribute('data-id');
-            // Execute single dispatch
-            const pending = await OutreachDB.getPendingQueue();
-            const item = pending.find(q => q.id === id);
+            const item = await OutreachDB.getQueueItem(id);
             if (item) {
-              // Override schedule time to make ready instantly
+              if (selectedCampaign && (selectedCampaign.status || '').toLowerCase() !== 'active') {
+                await this.toggleCampaignActive(selectedCampaign.id, true);
+              }
               item.scheduledTime = Date.now();
               await OutreachDB.updateQueueItem(item);
               
               btn.innerHTML = `<span style="font-size:0.75rem; color:var(--text-muted);">Sending...</span>`;
               
-              const processed = await SequenceEngine.processPendingQueue();
+              const processed = await SequenceEngine.processPendingQueue(item.campaignId);
               if (processed > 0) {
                 alert('Message successfully sent!');
               } else {
                 alert('Send dispatch failed. Check console or Activity Logs.');
               }
-              await this.renderQueueView();
+              await this.renderQueueView(this.state.selectedQueueCampaignId);
               await this.updateQueueBadgeCount();
             }
           });
@@ -693,42 +900,44 @@ class OutreachApp {
             const id = btn.getAttribute('data-id');
             if (confirm('Cancel and remove this follow-up email from outbox?')) {
               await OutreachDB.deleteQueueItem(id);
-              await this.renderQueueView();
+              await this.renderQueueView(this.state.selectedQueueCampaignId);
               await this.updateQueueBadgeCount();
             }
           });
         });
       }
 
-      // 2. RENDER SENT EMAILS (SENT LOGS)
-      const sentItems = await OutreachDB.getSentQueue();
+      // 7. Render Sent Emails
       const sentContainer = document.getElementById('sent-queue-table-body');
       if (sentContainer) {
         sentContainer.innerHTML = '';
         if (sentItems.length === 0) {
+          const emptySentMsg = selectedCampaign
+            ? `No emails have been sent for "${selectedCampaign.name}" yet.`
+            : `No sent emails to display.`;
           sentContainer.innerHTML = `
             <tr>
               <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
-                No emails have been sent from this browser outbox yet.
+                ${emptySentMsg}
               </td>
             </tr>
           `;
         } else {
           for (const item of sentItems) {
-            const campaign = await OutreachDB.getCampaign(item.campaignId);
             const prospect = await OutreachDB.getProspect(item.prospectId);
+            const prospectName = this.getProspectDisplayName(prospect);
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td>
                 <div class="dispatch-cell prospect">
-                  <span class="dispatch-cell-main">${prospect ? prospect.variables['First Name'] || 'Recipient' : 'Unknown'}</span>
+                  <span class="dispatch-cell-main">${prospectName}</span>
                   <span class="dispatch-cell-sub">${prospect ? prospect.email : 'Unknown'}</span>
                 </div>
               </td>
-              <td>${campaign ? campaign.name : 'Unknown Campaign'}</td>
+              <td>${selectedCampaign ? selectedCampaign.name : 'Campaign'}</td>
               <td><span class="step-number" style="width:22px; height:22px; font-size:0.75rem; background: rgba(0, 200, 150, 0.15); border: 1px solid rgba(0, 200, 150, 0.3); color: var(--accent-teal);">${item.step}</span></td>
               <td style="color: var(--accent-teal); font-weight: 500;">${item.sentTime ? new Date(item.sentTime).toLocaleString() : 'N/A'}</td>
-              <td class="btn-preview-trigger" data-id="${item.id}" style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary); transition: color 0.2s;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-primary)'" title="Click to Verify Email Content">${item.subject}</td>
+              <td class="btn-preview-trigger" data-id="${item.id}" style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary); transition: color 0.2s;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-primary)'" title="Click to Verify Email Content">${item.subject || '(No Subject)'}</td>
               <td style="text-align: right;">
                 <button class="btn btn-secondary btn-preview-queue" data-id="${item.id}" style="padding: 0.4rem; border-radius: 8px;" title="Verify Sent Email Content">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-blue);"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -1130,11 +1339,17 @@ class OutreachApp {
   // --- SYSTEM LOGS REFRESH AND SYNC SIDEBAR COUNTER ---
   async updateQueueBadgeCount() {
     try {
-      const list = await OutreachDB.getPendingQueue();
+      const campaigns = await OutreachDB.getAllCampaigns();
+      const activeCampaign = campaigns.find(c => c.status === 'active');
       const badge = document.getElementById('queue-badge-count');
-      if (list.length > 0) {
-        badge.textContent = list.length;
-        badge.style.display = 'inline-block';
+      if (activeCampaign) {
+        const list = await OutreachDB.getPendingQueue(activeCampaign.id);
+        if (list.length > 0) {
+          badge.textContent = list.length;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
       } else {
         badge.style.display = 'none';
       }
@@ -1724,10 +1939,47 @@ class OutreachApp {
     });
 
     // 6. Queue Review Process Sends & Scan Replies
+    const queueCampSelector = document.getElementById('queue-campaign-selector');
+    if (queueCampSelector) {
+      queueCampSelector.addEventListener('change', async (e) => {
+        const campaignId = e.target.value;
+        this.state.selectedQueueCampaignId = campaignId;
+        await this.renderQueueView(campaignId);
+      });
+    }
+
+    const btnQueueActivate = document.getElementById('btn-queue-activate-camp');
+    if (btnQueueActivate) {
+      btnQueueActivate.addEventListener('click', async () => {
+        if (this.state.selectedQueueCampaignId) {
+          await this.toggleCampaignActive(this.state.selectedQueueCampaignId, true);
+          await this.renderQueueView(this.state.selectedQueueCampaignId);
+          await this.renderDashboard();
+          await this.updateQueueBadgeCount();
+        }
+      });
+    }
+
     document.getElementById('btn-process-queue').addEventListener('click', async () => {
       if (!GoogleAuth.isMockMode() && !GoogleAuth.isAuthorized()) {
         alert('Real API flows require Google Authentication. Please sign in with your enterprise account first!');
         return;
+      }
+
+      const campaigns = await OutreachDB.getAllCampaigns();
+      let targetCampaign = campaigns.find(c => c.id === this.state.selectedQueueCampaignId);
+      if (!targetCampaign) {
+        targetCampaign = campaigns.find(c => c.status === 'active');
+      }
+
+      if (!targetCampaign) {
+        alert('Please select or activate a campaign to process its queue.');
+        return;
+      }
+
+      // If the selected campaign is currently paused, auto-activate it so sends succeed
+      if (targetCampaign.status !== 'active') {
+        await this.toggleCampaignActive(targetCampaign.id, true);
       }
 
       const btn = document.getElementById('btn-process-queue');
@@ -1751,19 +2003,19 @@ class OutreachApp {
       let totalCount = 0;
 
       try {
-        const sends = await SequenceEngine.processPendingQueue((data) => {
+        const sends = await SequenceEngine.processPendingQueue(targetCampaign.id, (data) => {
           if (!data) return;
 
           switch (data.status) {
             case 'start':
               totalCount = data.total;
               // Clear previous log, initialize HUD state
-              hudMiniLog.innerHTML = `<div style="color: var(--text-muted); font-style: italic;">Initiating transmission pipeline for ${totalCount} follow-ups...</div>`;
+              hudMiniLog.innerHTML = `<div style="color: var(--text-muted); font-style: italic;">Initiating transmission pipeline for ${totalCount} follow-ups in "${targetCampaign.name}"...</div>`;
               hudProgressBar.style.width = '0%';
               hudProgressText.textContent = `Preparing 1 of ${totalCount}`;
               hudPercentText.textContent = '0%';
               hudTitle.textContent = 'Outbox Dispatch Engine';
-              hudSubtitle.textContent = 'ACTIVE TRANSMISSION';
+              hudSubtitle.textContent = `TRANSMITTING: ${targetCampaign.name.toUpperCase()}`;
               hudSubtitle.style.color = 'var(--accent-blue)';
               hudName.textContent = 'Preparing Pipeline';
               hudEmail.textContent = 'Checking pending dispatches';
@@ -1834,7 +2086,7 @@ class OutreachApp {
               hudSubtitle.textContent = 'OUTBOX PIPELINE CLEAN';
               hudSubtitle.style.color = 'var(--accent-teal)';
               hudName.textContent = 'All Sent!';
-              hudEmail.textContent = `Dispatched ${data.successful} of ${data.total} emails.`;
+              hudEmail.textContent = `Dispatched ${data.successful} of ${data.total} emails for ${targetCampaign.name}.`;
               hudStatus.textContent = 'Idle';
               hudProgressBar.style.width = '100%';
               hudPercentText.textContent = '100%';
@@ -1843,7 +2095,7 @@ class OutreachApp {
               logDiv.style.color = 'var(--accent-blue)';
               logDiv.style.fontWeight = 'bold';
               logDiv.style.marginTop = '0.5rem';
-              logDiv.textContent = `--- Pipeline complete. Successfully dispatched ${data.successful} emails. ---`;
+              logDiv.textContent = `--- Pipeline complete. Successfully dispatched ${data.successful} emails for ${targetCampaign.name}. ---`;
               hudMiniLog.appendChild(logDiv);
               hudMiniLog.scrollTop = hudMiniLog.scrollHeight;
 
@@ -1856,14 +2108,14 @@ class OutreachApp {
           }
         });
 
-        await this.renderQueueView();
+        await this.renderQueueView(targetCampaign.id);
         await this.updateQueueBadgeCount();
         await this.renderDashboard();
         
         if (sends > 0) {
-          alert(`Successfully dispatched ${sends} outreach emails!`);
+          alert(`Successfully dispatched ${sends} outreach emails for "${targetCampaign.name}"!`);
         } else {
-          alert('No pending emails scheduled for delivery at this time.');
+          alert(`No pending emails scheduled for delivery in "${targetCampaign.name}" at this time.`);
         }
       } catch (err) {
         alert(`Error running send queue: ${err.message}`);
@@ -1886,8 +2138,8 @@ class OutreachApp {
       btn.disabled = true;
 
       try {
-        const replies = await SequenceEngine.checkCampaignReplies();
-        await this.renderQueueView();
+        const replies = await SequenceEngine.checkCampaignReplies(this.state.selectedQueueCampaignId || null);
+        await this.renderQueueView(this.state.selectedQueueCampaignId);
         await this.updateQueueBadgeCount();
         await this.renderDashboard();
         
@@ -1951,6 +2203,7 @@ class OutreachApp {
 
     try {
       if (status === 'active') {
+        this.state.selectedQueueCampaignId = campaignId;
         // Pause all other campaigns
         const campaigns = await OutreachDB.getAllCampaigns();
         for (const c of campaigns) {

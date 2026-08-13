@@ -110,12 +110,24 @@ export class SequenceEngine {
   }
 
   /**
-   * Processes all outstanding pending queue items across active campaigns.
+   * Processes outstanding pending queue items for a campaign (or all active campaigns).
    * Can be run on-demand or on tab load.
    * Runs callback for status updates per message.
    */
-  static async processPendingQueue(onProgressCallback = null) {
-    const pendingItems = await OutreachDB.getPendingQueue();
+  static async processPendingQueue(campaignIdOrCallback = null, maybeCallback = null) {
+    let campaignId = null;
+    let onProgressCallback = null;
+
+    if (typeof campaignIdOrCallback === 'function') {
+      onProgressCallback = campaignIdOrCallback;
+    } else if (typeof campaignIdOrCallback === 'string') {
+      campaignId = campaignIdOrCallback;
+      onProgressCallback = maybeCallback;
+    } else if (maybeCallback) {
+      onProgressCallback = maybeCallback;
+    }
+
+    const pendingItems = await OutreachDB.getPendingQueue(campaignId);
     const now = Date.now();
     
     // Filters items that are scheduled to be sent now or in the past

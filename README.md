@@ -54,22 +54,25 @@ We have included a launch file so you don't have to type any terminal commands:
 
 ---
 
-#### 🍎 On macOS (Apple/Mac)
-We have included a launch file for Mac users as well:
-1. Double-click the file named **`start.command`**.
-2. *Note for first-time setup:* If Mac displays a permission/security warning:
-   * Open the **Terminal** app (press `Cmd + Space`, type `Terminal`, and press `Enter`).
-   * Type `chmod +x ` (make sure there is a space after `+x`), then **drag and drop** the `start.command` file from Finder into your Terminal window, and press **Enter**.
-   * Now you can double-click **`start.command`** anytime to launch!
-3. This will automatically:
-   * Open your browser to `http://localhost:8000`.
-   * Start the server. Keep the Terminal window open while you work!
+#### 🍎 On macOS (Mac)
+If you are using a Mac, you can start the app in a few simple steps using your Mac's built-in **Terminal** app. (Think of the Terminal as a simple command window where your computer runs the local server).
 
-*If you prefer to start it manually via the terminal:*
-1. Open the **Terminal** app.
-2. Type `cd ` followed by the path to the unzipped folder.
-3. Run: `python3 -m http.server 8000`
-4. Open your browser and go to `http://localhost:8000`.
+**How to start the app on your Mac:**
+1. **Open the Terminal:**
+   - Press the **Command (`⌘`) + Spacebar** keys on your keyboard to open Spotlight Search.
+   - Type the word **`Terminal`** and press **Enter**. A small window with a blinking cursor will pop up.
+2. **Navigate to your folder:**
+   - Type `cd ` (type the letters **c** and **d**, followed by a **space**).
+   - Drag and drop your unzipped outreach folder from your Finder window directly into the Terminal window. (The folder path will automatically fill in).
+   - Press **Enter**.
+3. **Start the server:**
+   - Copy and paste (or type) this exact command and press **Enter**:
+     ```bash
+     python3 -m http.server 8000
+     ```
+4. **Open the app:**
+   - Open your web browser (Chrome, Safari, or Firefox), type **`http://localhost:8000`** into the address bar, and hit **Enter**!
+   - *Tip:* Keep the Terminal window open while you use the app. When you are finished, you can simply close the Terminal window.
 
 ---
 

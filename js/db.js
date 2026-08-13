@@ -259,36 +259,45 @@ export class OutreachDB {
 
   static async getCampaignQueue(campaignId) {
     return this.transaction('queue', 'readonly', (tx) => {
-      const index = tx.objectStore('queue').index('campaignId');
-      const req = index.getAll(IDBKeyRange.only(campaignId));
+      const store = tx.objectStore('queue');
+      const req = store.getAll();
       return new Promise((resolve) => {
-        req.onsuccess = () => resolve(req.result || []);
+        req.onsuccess = () => {
+          const list = req.result || [];
+          resolve(list.filter(item => item.campaignId === campaignId));
+        };
       });
     });
   }
 
-  static async getPendingQueue() {
+  static async getPendingQueue(campaignId = null) {
     return this.transaction('queue', 'readonly', (tx) => {
-      const index = tx.objectStore('queue').index('status');
-      const req = index.getAll(IDBKeyRange.only('pending'));
+      const store = tx.objectStore('queue');
+      const req = store.getAll();
       return new Promise((resolve) => {
         req.onsuccess = () => {
-          const list = req.result || [];
+          let list = (req.result || []).filter(item => item.status === 'pending');
+          if (campaignId) {
+            list = list.filter(item => item.campaignId === campaignId);
+          }
           // Sort chronologically
-          list.sort((a, b) => a.scheduledTime - b.scheduledTime);
+          list.sort((a, b) => (a.scheduledTime || 0) - (b.scheduledTime || 0));
           resolve(list);
         };
       });
     });
   }
 
-  static async getSentQueue() {
+  static async getSentQueue(campaignId = null) {
     return this.transaction('queue', 'readonly', (tx) => {
-      const index = tx.objectStore('queue').index('status');
-      const req = index.getAll(IDBKeyRange.only('sent'));
+      const store = tx.objectStore('queue');
+      const req = store.getAll();
       return new Promise((resolve) => {
         req.onsuccess = () => {
-          const list = req.result || [];
+          let list = (req.result || []).filter(item => item.status === 'sent');
+          if (campaignId) {
+            list = list.filter(item => item.campaignId === campaignId);
+          }
           // Sort descending by sentTime (most recent first)
           list.sort((a, b) => (b.sentTime || 0) - (a.sentTime || 0));
           resolve(list);
@@ -318,13 +327,12 @@ export class OutreachDB {
     return new Promise((resolve, reject) => {
       const tx = db.transaction('queue', 'readwrite');
       const store = tx.objectStore('queue');
-      const index = store.index('prospectId');
-      const request = index.openCursor(IDBKeyRange.only(prospectId));
+      const request = store.openCursor();
       
       request.onsuccess = (event) => {
         const cursor = event.target.result;
         if (cursor) {
-          if (cursor.value.status === 'pending') {
+          if (cursor.value.prospectId === prospectId && cursor.value.status === 'pending') {
             store.delete(cursor.primaryKey);
           }
           cursor.continue();
